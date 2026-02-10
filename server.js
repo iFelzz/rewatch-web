@@ -18,6 +18,12 @@ function extractVideoId(url) {
             if (videoId) {
                 return `https://www.youtube.com/watch?v=${videoId}`;
             }
+            
+            // Handle youtube.com/shorts/... format
+            const shortsMatch = urlObj.pathname.match(/^\/shorts\/([a-zA-Z0-9_-]+)/);
+            if (shortsMatch && shortsMatch[1]) {
+                return `https://www.youtube.com/watch?v=${shortsMatch[1]}`;
+            }
         }
         
         // Handle youtu.be/... format
