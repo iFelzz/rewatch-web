@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Re-Watch Admin - Logs Viewer</title>
+    
+    <!-- Export Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
     <style>
         * {
             margin: 0;
@@ -433,6 +439,220 @@
                 font-size: 14px;
             }
         }
+
+        /* Download Dropdown Styles */
+        .download-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .download-menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border-radius: 8px;
+            min-width: 180px;
+            margin-top: 5px;
+            z-index: 1000;
+            overflow: hidden;
+        }
+
+        .download-menu.show {
+            display: block;
+            animation: fadeIn 0.2s;
+        }
+
+        .download-menu button {
+            width: 100%;
+            padding: 12px 16px;
+            border: none;
+            background: white;
+            color: #333;
+            text-align: left;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .download-menu button:hover {
+            background: #f5f5f5;
+        }
+
+        .download-menu button:active {
+            background: #e8e8e8;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.6);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+            animation: fadeIn 0.3s;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            animation: slideUp 0.3s;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            color: #333;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.2s;
+        }
+
+        .modal-close:hover {
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .modal-body {
+            margin-bottom: 20px;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        /* Checkbox Filter Styles */
+        .filter-group {
+            margin-top: 15px;
+        }
+
+        .filter-checkboxes {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .filter-checkboxes label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+
+        .filter-checkboxes label:hover {
+            background: #f5f5f5;
+            border-color: #667eea;
+        }
+
+        .filter-checkboxes input[type="checkbox"] {
+            cursor: pointer;
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .filter-actions button {
+            font-size: 12px;
+            padding: 4px 8px;
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .filter-actions button:hover {
+            background: #e8e8e8;
+        }
+
+        /* Collapsible section headers */
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .section-arrow {
+            transition: transform 0.2s;
+            font-size: 10px;
+        }
+
+        .section-arrow.collapsed {
+            transform: rotate(-90deg);
+        }
+
+        .section-content {
+            display: contents;
+        }
+
+        .section-content.collapsed {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -456,6 +676,20 @@
                 <h2>Access Logs</h2>
                 <div style="display: flex; gap: 10px;">
                     <button id="refreshButton" onclick="manualRefresh()" title="Click to refresh now">🔄 Refresh (10s)</button>
+                    
+                    <!-- Download Dropdown -->
+                    <div class="download-dropdown">
+                        <button onclick="toggleDownloadMenu()" id="downloadBtn">📥 Download</button>
+                        <div class="download-menu" id="downloadMenu">
+                            <button disabled title="⚠️ Temporarily Disabled - Under Maintenance" style="cursor: not-allowed; opacity: 0.5;">📄 Download CSV</button>
+                            <button onclick="exportCurrentLog('json')">📋 Download JSON</button>
+                            <button onclick="exportCurrentLog('xlsx')">📊 Download Excel</button>
+                            <button onclick="exportCurrentLog('pdf')">📕 Download PDF</button>
+                            <hr style="margin: 4px 0; border: none; border-top: 1px solid #e0e0e0;">
+                            <button onclick="openDateRangeModal()">📅 Download Within Range...</button>
+                        </div>
+                    </div>
+                    
                     <button class="danger" onclick="clearAllLogs()">🗑️ Clear All Logs</button>
                     <button onclick="logout()">Logout</button>
                 </div>
@@ -1169,6 +1403,434 @@
                 alert('Error: ' + error.message);
             });
         }
+
+        // === Export Functions ===
+
+        // Toggle download dropdown menu
+        function toggleDownloadMenu() {
+            const menu = document.getElementById('downloadMenu');
+            menu.classList.toggle('show');
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const dropdown = document.querySelector('.download-dropdown');
+            if (dropdown && !dropdown.contains(event.target)) {
+                document.getElementById('downloadMenu').classList.remove('show');
+            }
+        });
+
+        // Export current log
+        function exportCurrentLog(format) {
+            const selectedDate = document.getElementById('logFileSelect').value;
+            
+            if (!selectedDate) {
+                alert('Please select a log file first!');
+                toggleDownloadMenu();
+                return;
+            }
+
+            const logs = currentLogs; // Use currently displayed logs
+            const filename = `logs-${selectedDate}`;
+
+            switch(format) {
+                case 'csv':
+                    exportToCSV(logs, filename);
+                    break;
+                case 'json':
+                    exportToJSON(logs, filename);
+                    break;
+                case 'xlsx':
+                    exportToExcel(logs, filename);
+                    break;
+                case 'pdf':
+                    exportToPDF(logs, filename);
+                    break;
+            }
+
+            toggleDownloadMenu();
+        }
+
+        // Helper: Format location object to string
+        function formatLocation(location) {
+            if (!location) return '';
+            if (typeof location === 'string') return location;
+            
+            // If it's an object, format it nicely
+            if (typeof location === 'object') {
+                const parts = [];
+                if (location.city) parts.push(location.city);
+                if (location.region) parts.push(location.region);
+                if (location.country) parts.push(location.country);
+                return parts.join(', ') || 'Unknown';
+            }
+            
+            return String(location);
+        }
+
+        // CSV Export - Simplified for maximum Excel compatibility
+        function exportToCSV(logs, filename) {
+            // Clean and escape field
+            function clean(field) {
+                if (field === null || field === undefined) return '';
+                let str = String(field)
+                    .replace(/[\r\n]+/g, ' ')
+                    .replace(/\t/g, ' ')
+                    .trim();
+                // Only quote if necessary (contains comma, quote, or starts with special chars)
+                if (str.includes(',') || str.includes('"') || str.match(/^[=+\-@]/)) {
+                    str = '"' + str.replace(/"/g, '""') + '"';
+                }
+                return str;
+            }
+            
+            const rows = [];
+            
+            // Excel separator hint (helps with locale issues)
+            rows.push('sep=,');
+            
+            // Headers
+            rows.push('Timestamp,Level,Action,Message,IP,Location,User Agent,Processing Time');
+            
+            // Data rows
+            logs.forEach(log => {
+                rows.push([
+                    clean(log.timestamp),
+                    clean(log.level || 'info'),
+                    clean(log.action),
+                    clean(log.message),
+                    clean(log.ip),
+                    clean(formatLocation(log.location)),
+                    clean(log.userAgent),
+                    clean(log.processingTime)
+                ].join(','));
+            });
+            
+            // Simple text file with UTF-8 BOM
+            const BOM = '\uFEFF';
+            const content = BOM + rows.join('\r\n');
+            
+            // Download
+            const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `${filename}.csv`;
+            link.click();
+            URL.revokeObjectURL(link.href);
+        }
+
+
+        // JSON Export
+        function exportToJSON(logs, filename) {
+            const jsonContent = JSON.stringify(logs, null, 2);
+            downloadFile(jsonContent, `${filename}.json`, 'application/json');
+        }
+
+        // Excel Export
+        function exportToExcel(logs, filename) {
+            const data = logs.map(log => ({
+                'Timestamp': log.timestamp,
+                'Level': log.level || 'info',
+                'Action': log.action || '',
+                'Message': log.message || '',
+                'IP': log.ip || '',
+                'Location': formatLocation(log.location),
+                'User Agent': log.userAgent || '',
+                'Processing Time': log.processingTime || ''
+            }));
+
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Logs");
+            XLSX.writeFile(wb, `${filename}.xlsx`);
+        }
+
+        // PDF Export
+        function exportToPDF(logs, filename) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            doc.setFontSize(16);
+            doc.text('Access Logs', 14, 15);
+            doc.setFontSize(10);
+            doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 22);
+
+            const tableData = logs.map(log => [
+                log.timestamp,
+                log.level || 'info',
+                log.action || '',
+                (log.message || '').substring(0, 30),
+                log.ip || '',
+                formatLocation(log.location)
+            ]);
+
+            doc.autoTable({
+                startY: 28,
+                head: [['Timestamp', 'Level', 'Action', 'Message', 'IP', 'Location']],
+                body: tableData,
+                styles: { fontSize: 8 },
+                headStyles: { fillColor: [102, 126, 234] }
+            });
+
+            doc.save(`${filename}.pdf`);
+        }
+
+        // Helper: Download file
+        function downloadFile(content, filename, type) {
+            const blob = new Blob([content], { type });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Modal functions
+        function openDateRangeModal() {
+            document.getElementById('dateRangeModal').classList.add('show');
+            toggleDownloadMenu(); // Close dropdown
+            
+            // Set default dates
+            const today = new Date().toISOString().split('T')[0];
+            const weekAgo = new Date(Date.now() - 7*24*60*60*1000).toISOString().split('T')[0];
+            document.getElementById('startDate').value = weekAgo;
+            document.getElementById('endDate').value = today;
+        }
+
+        function closeDateRangeModal() {
+            document.getElementById('dateRangeModal').classList.remove('show');
+        }
+
+        // Checkbox helper functions
+        function selectAllActions() {
+            const checkboxes = document.querySelectorAll('#actionFilters input[type="checkbox"]');
+            checkboxes.forEach(cb => cb.checked = true);
+        }
+
+        function selectNoActions() {
+            const checkboxes = document.querySelectorAll('#actionFilters input[type="checkbox"]');
+            checkboxes.forEach(cb => cb.checked = false);
+        }
+
+        function toggleUserActions(checkbox) {
+            const userCheckboxes = document.querySelectorAll('.user-action');
+            userCheckboxes.forEach(cb => cb.checked = checkbox.checked);
+        }
+
+        function toggleAdminActions(checkbox) {
+            const adminCheckboxes = document.querySelectorAll('.admin-action');
+            adminCheckboxes.forEach(cb => cb.checked = checkbox.checked);
+        }
+
+        // Toggle collapsible sections
+        function toggleSection(sectionId) {
+            const content = document.getElementById(sectionId + 'Content');
+            const arrow = document.getElementById(sectionId + 'Arrow');
+            
+            content.classList.toggle('collapsed');
+            arrow.classList.toggle('collapsed');
+        }
+
+        // Sync quick filter checkboxes when individual items change
+        function syncQuickFilter(type) {
+            const checkboxes = document.querySelectorAll(type === 'user' ? '.user-action' : '.admin-action');
+            const allCheckbox = document.querySelector(`input[value="all_${type}"]`);
+            
+            // Check if all checkboxes are checked
+            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+            allCheckbox.checked = allChecked;
+        }
+
+        function getSelectedActions() {
+            const checkboxes = document.querySelectorAll('#actionFilters input[type="checkbox"]:checked');
+            return Array.from(checkboxes)
+                .map(cb => cb.value)
+                .filter(v => v !== 'all_user' && v !== 'all_admin'); // Exclude quick filter values
+        }
+
+
+        // Export date range
+        async function exportDateRange() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const format = document.getElementById('rangeFormat').value;
+            const selectedActions = getSelectedActions();
+
+            if (!startDate || !endDate) {
+                alert('Please select both start and end dates!');
+                return;
+            }
+
+            if (new Date(startDate) > new Date(endDate)) {
+                alert('Start date must be before end date!');
+                return;
+            }
+
+            if (selectedActions.length === 0) {
+                alert('Please select at least one action to filter!');
+                return;
+            }
+
+            try {
+                // Fetch logs for date range
+                let logs = await fetchLogsInRange(startDate, endDate);
+                
+                // Filter by selected actions
+                logs = logs.filter(log => selectedActions.includes(log.action));
+                
+                if (logs.length === 0) {
+                    alert('No logs found in the selected date range with the selected filters.');
+                    return;
+                }
+
+                const filename = `logs-${startDate}-to-${endDate}`;
+
+                switch(format) {
+                    case 'csv':
+                        exportToCSV(logs, filename);
+                        break;
+                    case 'json':
+                        exportToJSON(logs, filename);
+                        break;
+                    case 'xlsx':
+                        exportToExcel(logs, filename);
+                        break;
+                    case 'pdf':
+                        exportToPDF(logs, filename);
+                        break;
+                }
+
+                closeDateRangeModal();
+            } catch (error) {
+                alert('Error fetching logs: ' + error.message);
+            }
+        }
+
+        // Fetch logs in date range
+        async function fetchLogsInRange(startDate, endDate) {
+            const allLogs = [];
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+
+            // Get all log files
+            const filesResponse = await fetch('/admin/logs', {
+                headers: { 'X-API-Key': apiKey }
+            });
+            const filesData = await filesResponse.json();
+
+            // Filter files within range
+            const filesInRange = filesData.logs.filter(file => {
+                const fileDate = new Date(file.date);
+                return fileDate >= start && fileDate <= end;
+            });
+
+            // Fetch each log file
+            for (const file of filesInRange) {
+                const logResponse = await fetch(`/admin/logs/${file.date}`, {
+                    headers: { 'X-API-Key': apiKey }
+                });
+                const logData = await logResponse.json();
+                allLogs.push(...logData.logs);
+            }
+
+            return allLogs;
+        }
     </script>
+
+    <!-- Date Range Modal -->
+    <div class="modal-overlay" id="dateRangeModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Download Logs - Date Range</h3>
+                <button class="modal-close" onclick="closeDateRangeModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="startDate">Start Date</label>
+                    <input type="date" id="startDate" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;">
+                </div>
+                <div class="form-group">
+                    <label for="endDate">End Date</label>
+                    <input type="date" id="endDate" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;">
+                </div>
+                <div class="form-group">
+                    <label for="rangeFormat">Export Format</label>
+                    <select id="rangeFormat" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;">
+                        <option value="csv">📄 CSV</option>
+                        <option value="json">📋 JSON</option>
+                        <option value="xlsx">📊 Excel</option>
+                        <option value="pdf">📕 PDF</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Filter by Action</label>
+                    <div class="filter-actions">
+                        <button onclick="selectAllActions()" type="button" style="background: #667eea; color: white; border-color: #667eea;">Select All</button>
+                        <button onclick="selectNoActions()" type="button" style="background: #f56565; color: white; border-color: #f56565;">Unselect All</button>
+                    </div>
+                    <div class="filter-checkboxes" id="actionFilters">
+                        <!-- Quick Filters -->
+                        <label style="grid-column: 1 / -1; font-weight: 600; font-size: 12px; color: #667eea; padding: 4px 0; border: none;" class="section-header" onclick="toggleSection('quickFilters')">
+                            <span class="section-arrow" id="quickFiltersArrow">▼</span> QUICK FILTERS
+                        </label>
+                        <div id="quickFiltersContent" class="section-content">
+                            <label>
+                                <input type="checkbox" value="all_user" data-group="user" onchange="toggleUserActions(this)"> All User Actions
+                            </label>
+                            <label>
+                                <input type="checkbox" value="all_admin" data-group="admin" onchange="toggleAdminActions(this)"> All Admin Actions
+                            </label>
+                        </div>
+                        
+                        <!-- User Actions -->
+                        <label style="grid-column: 1 / -1; font-weight: 600; font-size: 12px; color: #555; padding: 4px 0; margin-top: 8px; border: none;" class="section-header" onclick="toggleSection('userActions')">
+                            <span class="section-arrow" id="userActionsArrow">▼</span> USER ACTIONS
+                        </label>
+                        <div id="userActionsContent" class="section-content">
+                            <label>
+                                <input type="checkbox" class="user-action" value="video_info" checked onchange="syncQuickFilter('user')"> Video Info Request
+                            </label>
+                            <label>
+                                <input type="checkbox" class="user-action" value="video_info_success" checked onchange="syncQuickFilter('user')"> Video Info Success
+                            </label>
+                            <label>
+                                <input type="checkbox" class="user-action" value="download" checked onchange="syncQuickFilter('user')"> Download Request
+                            </label>
+                            <label>
+                                <input type="checkbox" class="user-action" value="download_success" checked onchange="syncQuickFilter('user')"> Download Success
+                            </label>
+                        </div>
+                        
+                        <!-- Admin Actions -->
+                        <label style="grid-column: 1 / -1; font-weight: 600; font-size: 12px; color: #555; padding: 4px 0; margin-top: 8px; border: none;" class="section-header" onclick="toggleSection('adminActions')">
+                            <span class="section-arrow" id="adminActionsArrow">▼</span> ADMIN ACTIONS
+                        </label>
+                        <div id="adminActionsContent" class="section-content">
+                            <label>
+                                <input type="checkbox" class="admin-action" value="admin_auth_failed" checked onchange="syncQuickFilter('admin')"> Login Failed
+                            </label>
+                            <label>
+                                <input type="checkbox" class="admin-action" value="admin_auth_success" checked onchange="syncQuickFilter('admin')"> Login Success
+                            </label>
+                            <label>
+                                <input type="checkbox" class="admin-action" value="admin_view_log_list" checked onchange="syncQuickFilter('admin')"> View Logs List
+                            </label>
+                            <label>
+                                <input type="checkbox" class="admin-action" value="admin_view_log_detail" checked onchange="syncQuickFilter('admin')"> View Log Detail
+                            </label>
+                            <label>
+                                <input type="checkbox" class="admin-action" value="admin_clear_logs" checked onchange="syncQuickFilter('admin')"> Clear Logs
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeDateRangeModal()" style="background: #999;">Cancel</button>
+                <button onclick="exportDateRange()">📥 Download</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
