@@ -59,4 +59,33 @@ dailyRotateFileTransport.on('error', (error) => {
     console.error('Logger transport error:', error);
 });
 
+/**
+ * Force recreate log file after deletion
+ * This manually creates the log file and writes initial entry
+ */
+logger.forceRecreateFile = function() {
+    try {
+        // Get today's date in the format winston uses
+        const today = new Date();
+        const dateStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
+        const logFilePath = path.join(logDir, `access-${dateStr}.log`);
+        
+        // Create the log entry
+        const logEntry = {
+            level: 'info',
+            message: 'Log file recreated after deletion',
+            action: 'system_log_file_recreated',
+            timestamp: today.toISOString().replace('T', ' ').substring(0, 19)
+        };
+        
+        // Manually write to file using fs to force creation
+        // Winston will then pick up this file on next write
+        fs.appendFileSync(logFilePath, JSON.stringify(logEntry) + '\n', 'utf8');
+        
+        console.log(`✅ Log file recreated: ${logFilePath}`);
+    } catch (error) {
+        console.error('Failed to recreate log file:', error);
+    }
+};
+
 module.exports = logger;

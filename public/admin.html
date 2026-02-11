@@ -233,6 +233,7 @@
             margin-top: 15px;
         }
 
+
         .success-message {
             background: #f0f9ff;
             color: #0066cc;
@@ -240,6 +241,197 @@
             border-radius: 8px;
             border-left: 4px solid #0066cc;
             margin-top: 15px;
+        }
+
+        /* Calendar Styles */
+        .calendar-container {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            margin: 15px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+
+        .calendar-container.collapsed .calendar-content {
+            display: none;
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding: 0;
+        }
+
+        .calendar-header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .calendar-header h3 {
+            margin: 0;
+            color: #333;
+            font-size: 16px;
+        }
+
+        .calendar-toggle {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        .calendar-toggle:hover {
+            transform: scale(1.05);
+            box-shadow: 0 3px 10px rgba(102, 126, 234, 0.3);
+        }
+
+        .calendar-nav {
+            display: flex;
+            gap: 10px;
+        }
+
+        .calendar-nav button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            padding: 0;
+        }
+
+        .calendar-nav button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .calendar-weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+            margin-bottom: 6px;
+            text-align: center;
+            font-weight: 600;
+            color: #666;
+            font-size: 12px;
+        }
+
+        .calendar-weekday {
+            padding: 4px;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+        }
+
+        .calendar-day {
+            aspect-ratio: 1;
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            border: 2px solid transparent;
+            transition: all 0.3s;
+            position: relative;
+            min-height: 38px;
+        }
+
+        .calendar-day.empty {
+            background: transparent;
+            cursor: default;
+        }
+
+        .calendar-day.disabled {
+            background: #f5f5f5;
+            color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .calendar-day.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .calendar-day.active:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .calendar-day.selected {
+            border: 2px solid #667eea;
+            background: #e8ebff;
+            color: #667eea;
+            font-weight: 700;
+        }
+
+        .calendar-day.today {
+            border: 2px solid #ffa500;
+        }
+
+        .calendar-day.today.active {
+            border: 2px solid #ffd700;
+        }
+
+        .log-badge {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background: #ff6b6b;
+            color: white;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            font-size: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+
+        .selected .log-badge {
+            background: #667eea;
+        }
+
+        @media (max-width: 768px) {
+            .calendar-day {
+                font-size: 11px;
+                min-height: 32px;
+            }
+
+            .log-badge {
+                width: 12px;
+                height: 12px;
+                font-size: 7px;
+            }
+
+            .calendar-weekdays {
+                font-size: 10px;
+            }
+
+            .calendar-header h3 {
+                font-size: 14px;
+            }
         }
     </style>
 </head>
@@ -252,7 +444,7 @@
             <h2 style="margin-bottom: 20px;">Admin Authentication</h2>
             <div class="form-group">
                 <label for="apiKey">API Key</label>
-                <input type="text" id="apiKey" placeholder="Enter your admin API key">
+                <input type="text" id="apiKey" placeholder="Enter your admin API key" onkeypress="if(event.key === 'Enter') authenticate()">
             </div>
             <button onclick="authenticate()">Access Logs</button>
             <div id="authError" class="error-message hidden"></div>
@@ -269,8 +461,37 @@
                 </div>
             </div>
 
+
             <!-- Stats -->
             <div class="stats" id="statsContainer"></div>
+
+            <!-- Calendar View -->
+            <div class="calendar-container" id="calendarContainer">
+                <div class="calendar-header">
+                    <div class="calendar-header-left">
+                        <h3 id="calendarTitle">February 2026</h3>
+                        <button class="calendar-toggle" onclick="toggleCalendar()" id="calendarToggle">
+                            📅 Hide Calendar
+                        </button>
+                    </div>
+                    <div class="calendar-nav">
+                        <button onclick="navigateMonth(-1)" title="Previous Month">◀</button>
+                        <button onclick="navigateMonth(1)" title="Next Month">▶</button>
+                    </div>
+                </div>
+                <div class="calendar-content" id="calendarContent">
+                    <div class="calendar-weekdays">
+                        <div class="calendar-weekday">Sun</div>
+                        <div class="calendar-weekday">Mon</div>
+                        <div class="calendar-weekday">Tue</div>
+                        <div class="calendar-weekday">Wed</div>
+                        <div class="calendar-weekday">Thu</div>
+                        <div class="calendar-weekday">Fri</div>
+                        <div class="calendar-weekday">Sat</div>
+                    </div>
+                    <div class="calendar-grid" id="calendarGrid"></div>
+                </div>
+            </div>
 
             <!-- Filters -->
             <div class="filters">
@@ -284,10 +505,22 @@
                     <label for="actionFilter">Filter by Action</label>
                     <select id="actionFilter" onchange="filterLogs()">
                         <option value="">All Actions</option>
-                        <option value="incoming_video_info_request">Incoming Video Info Request</option>
-                        <option value="fetch_video_info">Fetch Video Info (Success)</option>
-                        <option value="incoming_download_request">Incoming Download Request</option>
-                        <option value="download_video">Download Video (Success)</option>
+                        <optgroup label="Quick Filters">
+                            <option value="all_user_actions">📱 All User Actions</option>
+                            <option value="all_admin_actions">🔐 All Admin Actions</option>
+                        </optgroup>
+                        <optgroup label="User Actions">
+                            <option value="incoming_video_info_request">Incoming Video Info Request</option>
+                            <option value="fetch_video_info">Fetch Video Info (Success)</option>
+                            <option value="incoming_download_request">Incoming Download Request</option>
+                            <option value="download_video">Download Video (Success)</option>
+                        </optgroup>
+                        <optgroup label="Admin Actions">
+                            <option value="admin_auth_failed">🔐 Admin Login Failed</option>
+                            <option value="admin_auth_success">✅ Admin Login Success</option>
+                            <option value="admin_view_log_list">📋 Admin View Logs List</option>
+                            <option value="admin_view_log_detail">🔍 Admin View Log Detail</option>
+                        </optgroup>
                     </select>
                 </div>
                 <div class="form-group">
@@ -323,6 +556,123 @@
         let refreshCountdown = null;
         const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
         const AUTO_REFRESH_INTERVAL_MS = 10000; // 10 seconds
+
+        // Calendar state
+        let currentCalendarMonth = new Date().getMonth();
+        let currentCalendarYear = new Date().getFullYear();
+        let availableLogDates = new Set();
+        let selectedDate = null;
+
+        // Month names for display
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                           'July', 'August', 'September', 'October', 'November', 'December'];
+
+        // Calendar Functions
+        function renderCalendar() {
+            const calendarGrid = document.getElementById('calendarGrid');
+            const calendarTitle = document.getElementById('calendarTitle');
+            
+            // Update title
+            calendarTitle.textContent = `${monthNames[currentCalendarMonth]} ${currentCalendarYear}`;
+            
+            // Get first day of month and number of days
+            const firstDay = new Date(currentCalendarYear, currentCalendarMonth, 1).getDay();
+            const daysInMonth = new Date(currentCalendarYear, currentCalendarMonth + 1, 0).getDate();
+            
+            // Get today's date for comparison
+            const today = new Date();
+            const todayStr = today.toISOString().split('T')[0];
+            
+            // Clear grid
+            calendarGrid.innerHTML = '';
+            
+            // Add empty cells for days before month starts
+            for (let i = 0; i < firstDay; i++) {
+                const emptyDay = document.createElement('div');
+                emptyDay.className = 'calendar-day empty';
+                calendarGrid.appendChild(emptyDay);
+            }
+            
+            // Add day cells
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateStr = `${currentCalendarYear}-${String(currentCalendarMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const dayCell = document.createElement('div');
+                dayCell.className = 'calendar-day';
+                
+                // Check if this date has logs
+                const hasLogs = availableLogDates.has(dateStr);
+                
+                if (hasLogs) {
+                    dayCell.classList.add('active');
+                    dayCell.onclick = () => selectDateFromCalendar(dateStr);
+                } else {
+                    dayCell.classList.add('disabled');
+                }
+                
+                // Highlight today
+                if (dateStr === todayStr) {
+                    dayCell.classList.add('today');
+                }
+                
+                // Highlight selected date
+                if (dateStr === selectedDate) {
+                    dayCell.classList.add('selected');
+                }
+                
+                // Add day number
+                dayCell.textContent = day;
+                
+                calendarGrid.appendChild(dayCell);
+            }
+        }
+
+        function navigateMonth(direction) {
+            currentCalendarMonth += direction;
+            
+            if (currentCalendarMonth > 11) {
+                currentCalendarMonth = 0;
+                currentCalendarYear++;
+            } else if (currentCalendarMonth < 0) {
+                currentCalendarMonth = 11;
+                currentCalendarYear--;
+            }
+            
+            renderCalendar();
+        }
+
+        function selectDateFromCalendar(date) {
+            selectedDate = date;
+            renderCalendar();
+            
+            // Load the log file  
+            document.getElementById('logFileSelect').value = date;
+            loadLogFile();
+        }
+
+        function updateCalendarWithLogDates(files) {
+            // Extract dates from log files
+            availableLogDates.clear();
+            files.forEach(file => {
+                availableLogDates.add(file.date);
+            });
+            
+            // Render calendar with updated dates
+            renderCalendar();
+        }
+
+        function toggleCalendar() {
+            const container = document.getElementById('calendarContainer');
+            const toggleBtn = document.getElementById('calendarToggle');
+            
+            container.classList.toggle('collapsed');
+            
+            if (container.classList.contains('collapsed')) {
+                toggleBtn.textContent = '📅 Show Calendar';
+            } else {
+                toggleBtn.textContent = '📅 Hide Calendar';
+            }
+        }
+
 
         // Check for stored session on page load
         window.addEventListener('DOMContentLoaded', () => {
@@ -379,11 +729,18 @@
             }
             
             const authError = document.getElementById('authError');
+            const loginButton = document.querySelector('button[onclick="authenticate()"]');
 
             if (!apiKey) {
                 authError.textContent = 'Please enter an API key';
                 authError.classList.remove('hidden');
                 return;
+            }
+
+            // Disable button and show loading state
+            if (loginButton) {
+                loginButton.disabled = true;
+                loginButton.textContent = '⏳ Authenticating...';
             }
 
             // Try to fetch logs to validate API key
@@ -403,21 +760,45 @@
             })
             .then(data => {
                 // Authentication successful
+                // Hide error message
+                authError.textContent = '';
+                authError.classList.add('hidden');
+                
+                // Show success message
+                if (loginButton) {
+                    loginButton.textContent = '✅ Success! Loading panel...';
+                }
+                
                 // Store API key in localStorage
                 localStorage.setItem('adminApiKey', apiKey);
                 resetIdleTimer();
                 
-                document.getElementById('authCard').classList.add('hidden');
-                document.getElementById('logsCard').classList.remove('hidden');
-                displayLogFiles(data.logs);
-                
-                // Start auto-refresh
-                startAutoRefresh();
+                // Wait 2 seconds before showing admin panel
+                setTimeout(() => {
+                    document.getElementById('authCard').classList.add('hidden');
+                    document.getElementById('logsCard').classList.remove('hidden');
+                    displayLogFiles(data.logs);
+                    
+                    // Start auto-refresh
+                    startAutoRefresh();
+                    
+                    // Reset button state for next logout
+                    if (loginButton) {
+                        loginButton.disabled = false;
+                        loginButton.textContent = 'Access Logs';
+                    }
+                }, 2000);
             })
             .catch(error => {
                 authError.textContent = error.message;
                 authError.classList.remove('hidden');
                 clearSession();
+                
+                // Reset button state on error
+                if (loginButton) {
+                    loginButton.disabled = false;
+                    loginButton.textContent = 'Access Logs';
+                }
             });
         }
 
@@ -428,6 +809,11 @@
             document.getElementById('logsCard').classList.add('hidden');
             document.getElementById('logFilesList').innerHTML = '';
             document.getElementById('logEntries').innerHTML = '';
+            
+            // Clear error message
+            const authError = document.getElementById('authError');
+            authError.textContent = '';
+            authError.classList.add('hidden');
             
             // Clear session and stop auto-refresh
             clearSession();
@@ -504,9 +890,12 @@
         function refreshCurrentView() {
             const selectedDate = document.getElementById('logFileSelect').value;
             
-            // Refresh log files list
+            // Refresh log files list with auto-refresh header
             fetch('/admin/logs', {
-                headers: { 'X-API-Key': apiKey }
+                headers: { 
+                    'X-API-Key': apiKey,
+                    'X-Auto-Refresh': 'true' // Don't log this as admin action
+                }
             })
             .then(r => r.json())
             .then(d => {
@@ -514,7 +903,7 @@
                 
                 // If a specific date is selected, refresh that too
                 if (selectedDate) {
-                    loadLogFile();
+                    loadLogFile(true); // Pass true to indicate auto-refresh
                 }
             })
             .catch(err => console.error('Auto-refresh error:', err));
@@ -537,7 +926,7 @@
                         <p><strong>Size:</strong> ${file.size}</p>
                         <p><strong>Modified:</strong> ${new Date(file.modified).toLocaleString()}</p>
                     </div>
-                    <button class="danger small" onclick="clearSpecificLog('${file.date}'); event.stopPropagation();" style="margin-top: 10px; width: 100%;">🗑️ Delete</button>
+                    <button class="danger small" onclick="clearSpecificLog('${file.date}'); event.stopPropagation();" style="margin-top: 10px; width: 100%;">🗑️ Clear Log</button>
                 </div>
             `).join('');
 
@@ -548,6 +937,9 @@
             if (currentSelected && files.some(f => f.date === currentSelected)) {
                 selectEl.value = currentSelected;
             }
+            
+            // Update calendar with available log dates
+            updateCalendarWithLogDates(files);
         }
 
         function loadSpecificLogFile(date) {
@@ -555,7 +947,7 @@
             loadLogFile();
         }
 
-        function loadLogFile() {
+        function loadLogFile(isAutoRefresh = false) {
             const date = document.getElementById('logFileSelect').value;
             const logsError = document.getElementById('logsError');
             
@@ -565,11 +957,16 @@
                 return;
             }
 
-            fetch(`/admin/logs/${date}`, {
-                headers: {
-                    'X-API-Key': apiKey
-                }
-            })
+            const headers = {
+                'X-API-Key': apiKey
+            };
+            
+            // Add auto-refresh header if this is automatic refresh
+            if (isAutoRefresh) {
+                headers['X-Auto-Refresh'] = 'true';
+            }
+
+            fetch(`/admin/logs/${date}`, { headers })
             .then(response => {
                 if (!response.ok) throw new Error('Failed to load logs');
                 return response.json();
@@ -620,8 +1017,35 @@
             const searchQuery = document.getElementById('searchInput').value.toLowerCase();
             const sortOrder = document.getElementById('sortOrder').value;
 
+            // Define action groups
+            const userActions = [
+                'incoming_video_info_request',
+                'fetch_video_info',
+                'incoming_download_request',
+                'download_video'
+            ];
+            
+            const adminActions = [
+                'admin_auth_failed',
+                'admin_auth_success',
+                'admin_view_log_list',
+                'admin_view_log_detail'
+            ];
+
             currentLogs = allLogs.filter(log => {
-                const matchesAction = !actionFilter || log.action === actionFilter;
+                let matchesAction = false;
+                
+                // Handle grouped filters
+                if (actionFilter === 'all_user_actions') {
+                    matchesAction = userActions.includes(log.action);
+                } else if (actionFilter === 'all_admin_actions') {
+                    matchesAction = adminActions.includes(log.action);
+                } else if (!actionFilter) {
+                    matchesAction = true; // No filter, show all
+                } else {
+                    matchesAction = log.action === actionFilter; // Specific action
+                }
+                
                 const matchesSearch = !searchQuery || 
                     JSON.stringify(log).toLowerCase().includes(searchQuery);
                 return matchesAction && matchesSearch;

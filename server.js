@@ -272,6 +272,9 @@ app.post('/download', async (req, res) => {
 
 // Admin endpoint untuk list semua log files
 app.get('/admin/logs', authMiddleware, (req, res) => {
+    const startTime = Date.now();
+    const isAutoRefresh = req.headers['x-auto-refresh'] === 'true';
+    
     try {
         const logsDir = path.join(__dirname, 'logs');
         
@@ -299,15 +302,34 @@ app.get('/admin/logs', authMiddleware, (req, res) => {
             })
             .sort((a, b) => b.modified - a.modified);
 
+        // Log admin action ONLY if NOT auto-refresh
+        if (!isAutoRefresh) {
+            logger.info('Admin viewed log files list', {
+                action: 'admin_view_log_list',
+                filesCount: files.length,
+                ip: req.userIp,
+                location: req.userLocation,
+                processingTime: Date.now() - startTime
+            });
+        }
+
         res.json({ success: true, logs: files });
     } catch (error) {
-        logger.error('Failed to list log files', { error: error.message });
+        logger.error('Failed to list log files', { 
+            action: 'admin_view_log_list',
+            error: error.message,
+            ip: req.userIp,
+            location: req.userLocation
+        });
         res.status(500).json({ error: 'Failed to retrieve log files' });
     }
 });
 
 // Admin endpoint untuk view log dari tanggal tertentu
 app.get('/admin/logs/:date', authMiddleware, (req, res) => {
+    const startTime = Date.now();
+    const isAutoRefresh = req.headers['x-auto-refresh'] === 'true';
+    
     try {
         const { date } = req.params;
         const logsDir = path.join(__dirname, 'logs');
@@ -333,6 +355,18 @@ app.get('/admin/logs/:date', authMiddleware, (req, res) => {
                 }
             });
 
+        // Log admin action ONLY if NOT auto-refresh
+        if (!isAutoRefresh) {
+            logger.info('Admin viewed specific log file', {
+                action: 'admin_view_log_detail',
+                date: date,
+                entriesCount: logLines.length,
+                ip: req.userIp,
+                location: req.userLocation,
+                processingTime: Date.now() - startTime
+            });
+        }
+
         res.json({ 
             success: true, 
             date: date,
@@ -341,8 +375,11 @@ app.get('/admin/logs/:date', authMiddleware, (req, res) => {
         });
     } catch (error) {
         logger.error('Failed to read log file', { 
+            action: 'admin_view_log_detail',
             date: req.params.date, 
-            error: error.message 
+            error: error.message,
+            ip: req.userIp,
+            location: req.userLocation
         });
         res.status(500).json({ error: 'Failed to read log file' });
     }
@@ -354,34 +391,36 @@ app.delete('/admin/logs/:date', authMiddleware, (req, res) => {
         const { date } = req.params;
         const logsDir = path.join(__dirname, 'logs');
         
-        // Special case: "all" means delete all log files
+        // Special case: "all" means clear all log files
         if (date === 'all') {
             if (!fs.existsSync(logsDir)) {
                 return res.json({ 
                     success: true, 
-                    message: 'No logs directory found, nothing to delete' 
+                    message: 'No logs directory found, nothing to clear' 
                 });
             }
             
-            // Delete all .log files
+            // Clear all .log files (empty their contents)
             const files = fs.readdirSync(logsDir).filter(f => f.endsWith('.log'));
             files.forEach(file => {
-                fs.unlinkSync(path.join(logsDir, file));
+                const filePath = path.join(logsDir, file);
+                fs.writeFileSync(filePath, '', 'utf8'); // Empty the file
             });
             
-            logger.info('All log files deleted', { 
+            logger.info('All log files cleared', { 
+                action: 'admin_clear_all_logs',
                 count: files.length,
-                deletedBy: req.userIp 
+                clearedBy: req.userIp 
             });
             
             return res.json({ 
                 success: true, 
-                message: `Deleted ${files.length} log file(s)`,
-                deleted: files 
+                message: `Cleared ${files.length} log file(s)`,
+                cleared: files 
             });
         }
         
-        // Delete specific date log file
+        // Clear specific date log file
         const logFile = path.join(logsDir, `access-${date}.log`);
         
         if (!fs.existsSync(logFile)) {
@@ -390,27 +429,34 @@ app.delete('/admin/logs/:date', authMiddleware, (req, res) => {
             });
         }
         
-        fs.unlinkSync(logFile);
+        // Clear file contents instead of deleting
+        fs.writeFileSync(logFile, '', 'utf8');
         
-        logger.info('Log file deleted', { 
+        logger.info('Log file cleared', { 
+            action: 'admin_clear_log',
             date: date,
-            deletedBy: req.userIp 
+            clearedBy: req.userIp 
         });
         
         res.json({ 
             success: true, 
-            message: `Log file for ${date} deleted successfully` 
+            message: `Log file for ${date} cleared successfully` 
         });
     } catch (error) {
-        logger.error('Failed to delete log file', { 
+        logger.error('Failed to clear log file', { 
             date: req.params.date, 
             error: error.message 
         });
-        res.status(500).json({ error: 'Failed to delete log file' });
+        res.status(500).json({ error: 'Failed to clear log file' });
     }
 });
 
 // Remove the static file serving endpoint since we're not storing files anymore
 // app.use('/files', express.static(path.join(__dirname, 'downloads')));
 
-app.listen(3000, () => console.log('🚀 Re-Watch server running at http://localhost:3000'));
+app.listen(3000, '0.0.0.0', () => {
+    console.log('🚀 Re-Watch server running at http://localhost:3000');
+    console.log('📡 Also accessible on your local network at:');
+    console.log('   Find your IP: ipconfig (Windows) or ifconfig (Mac/Linux)');
+    console.log('   Then access via: http://YOUR_LOCAL_IP:3000');
+});
