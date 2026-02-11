@@ -1,29 +1,31 @@
-# 1. Pake Node.js versi 18 (Stabil)
-FROM node:18-slim
+# GANTI ke versi "bullseye" (Lengkap) jangan yang "slim"
+# Ini isinya udah ada Python & Build Tools dasar
+FROM node:18-bullseye
 
-# 2. Install FFmpeg & Python (Wajib buat engine downloader)
-# Walaupun codingan lu JS, yt-dlp aslinya butuh python
+# Install FFmpeg & Python (Wajib buat engine downloader)
+# Tambah build-essential buat jaga-jaga kalau ada npm yg butuh compile
 RUN apt-get update && \
-    apt-get install -y ffmpeg python3 python3-pip && \
+    apt-get install -y ffmpeg python3 build-essential && \
     rm -rf /var/lib/apt/lists/*
 
-# 3. Set folder kerja
+# Set folder kerja
 WORKDIR /app
 
-# 4. Copy package.json dulu (biar cache Docker jalan)
+# Copy package.json
 COPY package*.json ./
 
-# 5. Install dependencies Node.js
-RUN npm install --production
+# Install dependencies
+# Tambah --unsafe-perm biar gak rewel soal permission root
+RUN npm install --production --unsafe-perm
 
-# 6. Copy semua sisa codingan lu (server.js, public, dll)
+# Copy sisa codingan
 COPY . .
 
-# 7. Bikin folder temp (buat processing sementara, auto-delete setelah send ke user)
-RUN mkdir -p temp
+# Bikin folder download
+RUN mkdir -p downloads
 
-# 8. Buka Port (Misal aplikasi lu jalan di port 3000)
+# Buka Port
 EXPOSE 3000
 
-# 9. Jalanin servernya
+# Jalanin
 CMD ["node", "server.js"]
