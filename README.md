@@ -68,15 +68,121 @@ sudo yum install ffmpeg  # CentOS/RHEL
    npm install
    ```
 
-4. **Start the server**
+4. **Configure environment variables (for Admin Logging)**
+   ```bash
+   # Copy example env file
+   cp .env.example .env
+   
+   # Generate a secure API key
+   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+   
+   # Edit .env and set ADMIN_API_KEY to the generated key
+   ```
+
+5. **Start the server**
    ```bash
    npm start
    ```
 
-5. **Open your browser** and go to:
+6. **Open your browser** and go to:
    ```
    http://localhost:3000
    ```
+
+## 📊 Logging System
+
+Re-Watch includes a comprehensive logging system that tracks all user activities for analytics and monitoring.
+
+### What's Logged
+
+- **IP Address** - User's IP address
+- **Geolocation** - Country, region, city, and timezone (via geoip-lite)
+- **Video Fetches** - Video title, URL, thumbnail, available resolutions
+- **Downloads** - Video title, resolution, file size, processing time
+- **Errors** - Failed requests with error details
+- **Timestamps** - All activities with precise timestamps
+
+### Log Storage
+
+- Logs are stored in `logs/access-YYYY-MM-DD.log`
+- Automatic daily rotation (keeps 30 days by default)
+- JSON format for easy parsing and analysis
+- Logs are **not committed to Git** (.gitignore)
+
+### Admin Access
+
+Access logs via the admin panel (owner-only):
+
+1. **Navigate to**: `http://localhost:3000/admin.html`
+2. **Enter your API Key** from `.env` file (`ADMIN_API_KEY`)
+3. **View logs** by:
+   - Selecting a date
+   - Filtering by action type (fetch/download)
+   - Searching for specific content
+   - Viewing statistics
+
+### API Endpoints
+
+#### GET `/admin/logs`
+List all available log files (requires API key).
+
+**Headers:**
+```
+X-API-Key: your_api_key_here
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "logs": [
+    {
+      "filename": "access-2026-02-10.log",
+      "date": "2026-02-10",
+      "size": "12.45 KB",
+      "modified": "2026-02-10T15:18:33.000Z"
+    }
+  ]
+}
+```
+
+#### GET `/admin/logs/:date`
+View logs for a specific date (requires API key).
+
+**Example:** `GET /admin/logs/2026-02-10`
+
+**Response:**
+```json
+{
+  "success": true,
+  "date": "2026-02-10",
+  "count": 15,
+  "logs": [
+    {
+      "level": "info",
+      "message": "Video info fetched successfully",
+      "action": "fetch_video_info",
+      "videoTitle": "Cool Video",
+      "ip": "192.168.1.100",
+      "location": {
+        "country": "ID",
+        "city": "Jakarta"
+      },
+      "timestamp": "2026-02-10 15:18:33"
+    }
+  ]
+}
+```
+
+### Privacy Considerations
+
+> ⚠️ **Important**: This logging system records user IP addresses and geolocation data. 
+> 
+> If you're deploying this publicly, ensure you:
+> - Add a Privacy Policy to your website
+> - Inform users about data collection
+> - Comply with GDPR/local privacy laws
+> - Consider data retention policies
 
 ## 💻 Usage
 

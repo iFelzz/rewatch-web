@@ -1,11 +1,18 @@
+require('dotenv').config();
 const express = require('express');
 const ytDlp = require('yt-dlp-exec');
 const path = require('path');
 const fs = require('fs');
+const logger = require('./logger');
+const loggingMiddleware = require('./middleware/logging');
+const authMiddleware = require('./middleware/auth');
 
 const app = express();
 app.use(express.json());
 app.use(express.static('public'));
+
+// Apply logging middleware to all routes
+app.use(loggingMiddleware);
 
 // Helper function untuk extract video ID dari URL YouTube
 function extractVideoId(url) {
@@ -55,6 +62,8 @@ app.post('/video-info', async (req, res) => {
     const { url } = req.body;
     if (!url) return res.status(400).json({ error: 'URL is required!' });
 
+    const startTime = Date.now();
+
     try {
         // Extract video ID only, ignore playlist/radio parameters
         const cleanUrl = extractVideoId(url);
@@ -89,6 +98,19 @@ app.post('/video-info', async (req, res) => {
 
         console.log(`Available resolutions: ${availableResolutions.join(', ')}`);
 
+        // Log successful video info fetch
+        logger.info('Video info fetched successfully', {
+            action: 'fetch_video_info',
+            url: cleanUrl,
+            videoTitle: info.title,
+            thumbnail: info.thumbnail,
+            duration: info.duration,
+            resolutions: availableResolutions,
+            ip: req.userIp,
+            location: req.userLocation,
+            processingTime: Date.now() - startTime
+        });
+
         res.json({
             success: true,
             title: info.title || 'Unknown Title',
@@ -113,6 +135,17 @@ app.post('/video-info', async (req, res) => {
         } else if (error.message && error.message.includes('Invalid URL')) {
             userMessage = 'Invalid URL. Please enter a valid YouTube URL.';
         }
+
+        // Log failed video info fetch
+        logger.error('Failed to fetch video info', {
+            action: 'fetch_video_info',
+            url: req.body.url,
+            error: userMessage,
+            errorDetails: error.message,
+            ip: req.userIp,
+            location: req.userLocation,
+            processingTime: Date.now() - startTime
+        });
         
         res.status(500).json({ 
             error: userMessage,
@@ -129,6 +162,7 @@ app.post('/download', async (req, res) => {
     // Generate unique temp filename to avoid conflicts between users
     const tempId = `${Date.now()}-${Math.random().toString(36).substring(7)}`;
     let tempFilePath = null;
+    const startTime = Date.now();
 
     try {
         // Extract video ID only, ignore playlist/radio parameters
@@ -172,6 +206,22 @@ app.post('/download', async (req, res) => {
 
         console.log(`✅ Download complete: ${finalFileName}`);
 
+        // Get file size
+        const fileStats = fs.statSync(tempFilePath);
+        const fileSizeMB = (fileStats.size / (1024 * 1024)).toFixed(2);
+
+        // Log successful download
+        logger.info('Video downloaded successfully', {
+            action: 'download_video',
+            url: cleanUrl,
+            videoTitle: info.title,
+            resolution: resolutionLabel,
+            fileSize: `${fileSizeMB} MB`,
+            ip: req.userIp,
+            location: req.userLocation,
+            processingTime: Date.now() - startTime
+        });
+
         // Send file directly to browser with proper headers
         res.setHeader('Content-Type', 'video/mp4');
         res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(finalFileName)}"`);
@@ -199,6 +249,17 @@ app.post('/download', async (req, res) => {
     } catch (error) {
         console.error(error);
         
+        // Log failed download
+        logger.error('Failed to download video', {
+            action: 'download_video',
+            url: req.body.url,
+            resolution: req.body.resolution || 'best',
+            error: error.message,
+            ip: req.userIp,
+            location: req.userLocation,
+            processingTime: Date.now() - startTime
+        });
+
         // Clean up temp file if exists
         if (tempFilePath && fs.existsSync(tempFilePath)) {
             fs.unlinkSync(tempFilePath);
@@ -206,6 +267,146 @@ app.post('/download', async (req, res) => {
         }
         
         res.status(500).json({ error: 'Failed to download video. Make sure URL is valid and try again.' });
+    }
+});
+
+// Admin endpoint untuk list semua log files
+app.get('/admin/logs', authMiddleware, (req, res) => {
+    try {
+        const logsDir = path.join(__dirname, 'logs');
+        
+        // Check if logs directory exists
+        if (!fs.existsSync(logsDir)) {
+            return res.json({ 
+                success: true, 
+                logs: [], 
+                message: 'No logs directory found yet. Logs will be created after first request.' 
+            });
+        }
+
+        // Read all log files
+        const files = fs.readdirSync(logsDir)
+            .filter(file => file.endsWith('.log'))
+            .map(file => {
+                const filePath = path.join(logsDir, file);
+                const stats = fs.statSync(filePath);
+                return {
+                    filename: file,
+                    date: file.replace('access-', '').replace('.log', ''),
+                    size: `${(stats.size / 1024).toFixed(2)} KB`,
+                    modified: stats.mtime
+                };
+            })
+            .sort((a, b) => b.modified - a.modified);
+
+        res.json({ success: true, logs: files });
+    } catch (error) {
+        logger.error('Failed to list log files', { error: error.message });
+        res.status(500).json({ error: 'Failed to retrieve log files' });
+    }
+});
+
+// Admin endpoint untuk view log dari tanggal tertentu
+app.get('/admin/logs/:date', authMiddleware, (req, res) => {
+    try {
+        const { date } = req.params;
+        const logsDir = path.join(__dirname, 'logs');
+        const logFile = path.join(logsDir, `access-${date}.log`);
+
+        // Check if log file exists
+        if (!fs.existsSync(logFile)) {
+            return res.status(404).json({ 
+                error: `No logs found for date: ${date}` 
+            });
+        }
+
+        // Read log file and parse JSON lines
+        const fileContent = fs.readFileSync(logFile, 'utf-8');
+        const logLines = fileContent
+            .split('\n')
+            .filter(line => line.trim())
+            .map(line => {
+                try {
+                    return JSON.parse(line);
+                } catch (e) {
+                    return { raw: line };
+                }
+            });
+
+        res.json({ 
+            success: true, 
+            date: date,
+            count: logLines.length,
+            logs: logLines 
+        });
+    } catch (error) {
+        logger.error('Failed to read log file', { 
+            date: req.params.date, 
+            error: error.message 
+        });
+        res.status(500).json({ error: 'Failed to read log file' });
+    }
+});
+
+// Admin endpoint untuk delete/clear log file
+app.delete('/admin/logs/:date', authMiddleware, (req, res) => {
+    try {
+        const { date } = req.params;
+        const logsDir = path.join(__dirname, 'logs');
+        
+        // Special case: "all" means delete all log files
+        if (date === 'all') {
+            if (!fs.existsSync(logsDir)) {
+                return res.json({ 
+                    success: true, 
+                    message: 'No logs directory found, nothing to delete' 
+                });
+            }
+            
+            // Delete all .log files
+            const files = fs.readdirSync(logsDir).filter(f => f.endsWith('.log'));
+            files.forEach(file => {
+                fs.unlinkSync(path.join(logsDir, file));
+            });
+            
+            logger.info('All log files deleted', { 
+                count: files.length,
+                deletedBy: req.userIp 
+            });
+            
+            return res.json({ 
+                success: true, 
+                message: `Deleted ${files.length} log file(s)`,
+                deleted: files 
+            });
+        }
+        
+        // Delete specific date log file
+        const logFile = path.join(logsDir, `access-${date}.log`);
+        
+        if (!fs.existsSync(logFile)) {
+            return res.status(404).json({ 
+                error: `Log file for date ${date} not found` 
+            });
+        }
+        
+        fs.unlinkSync(logFile);
+        
+        logger.info('Log file deleted', { 
+            date: date,
+            deletedBy: req.userIp 
+        });
+        
+        res.json({ 
+            success: true, 
+            message: `Log file for ${date} deleted successfully` 
+        });
+    } catch (error) {
+        logger.error('Failed to delete log file', { 
+            date: req.params.date, 
+            error: error.message 
+        });
+        res.status(500).json({ error: 'Failed to delete log file' });
     }
 });
 

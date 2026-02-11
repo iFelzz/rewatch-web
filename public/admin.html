@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Re-Watch Admin - Logs Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+        }
+
+        .auth-card, .logs-card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            margin-bottom: 20px;
+        }
+
+        .auth-card {
+            max-width: 500px;
+            margin: 0 auto 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        input[type="text"], input[type="date"], select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus, input[type="date"]:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button.danger {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        }
+
+        button.danger:hover {
+            box-shadow: 0 5px 15px rgba(220, 53, 69, 0.4);
+        }
+
+        button.small {
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .log-files-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .log-file-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .log-file-item:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+        }
+
+        .log-file-item h3 {
+            color: #667eea;
+            margin-bottom: 8px;
+        }
+
+        .log-file-item p {
+            color: #666;
+            font-size: 14px;
+            margin: 4px 0;
+        }
+
+        .log-entries {
+            margin-top: 20px;
+        }
+
+        .log-entry {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            border-left: 4px solid #667eea;
+        }
+
+        .log-entry.error {
+            border-left-color: #dc3545;
+            background: #fff5f5;
+        }
+
+        .log-entry-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .log-action {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .log-entry.error .log-action {
+            color: #dc3545;
+        }
+
+        .log-timestamp {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .log-details {
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .log-details p {
+            margin: 4px 0;
+        }
+
+        .log-detail-label {
+            font-weight: 600;
+            color: #555;
+        }
+
+        .filters {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .error-message {
+            background: #fff5f5;
+            color: #dc3545;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #dc3545;
+            margin-top: 15px;
+        }
+
+        .success-message {
+            background: #f0f9ff;
+            color: #0066cc;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #0066cc;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Re-Watch Admin Panel</h1>
+
+        <!-- Authentication Card -->
+        <div class="auth-card" id="authCard">
+            <h2 style="margin-bottom: 20px;">Admin Authentication</h2>
+            <div class="form-group">
+                <label for="apiKey">API Key</label>
+                <input type="text" id="apiKey" placeholder="Enter your admin API key">
+            </div>
+            <button onclick="authenticate()">Access Logs</button>
+            <div id="authError" class="error-message hidden"></div>
+        </div>
+
+        <!-- Logs Viewer Card -->
+        <div class="logs-card hidden" id="logsCard">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2>Access Logs</h2>
+                <div style="display: flex; gap: 10px;">
+                    <button id="refreshButton" onclick="manualRefresh()" title="Click to refresh now">🔄 Refresh (10s)</button>
+                    <button class="danger" onclick="clearAllLogs()">🗑️ Clear All Logs</button>
+                    <button onclick="logout()">Logout</button>
+                </div>
+            </div>
+
+            <!-- Stats -->
+            <div class="stats" id="statsContainer"></div>
+
+            <!-- Filters -->
+            <div class="filters">
+                <div class="form-group">
+                    <label for="logFileSelect">Select Log File</label>
+                    <select id="logFileSelect" onchange="loadLogFile()">
+                        <option value="">-- Select Date --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="actionFilter">Filter by Action</label>
+                    <select id="actionFilter" onchange="filterLogs()">
+                        <option value="">All Actions</option>
+                        <option value="incoming_video_info_request">Incoming Video Info Request</option>
+                        <option value="fetch_video_info">Fetch Video Info (Success)</option>
+                        <option value="incoming_download_request">Incoming Download Request</option>
+                        <option value="download_video">Download Video (Success)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="sortOrder">Sort by Time</label>
+                    <select id="sortOrder" onchange="filterLogs()">
+                        <option value="desc">Newest First (Descending)</option>
+                        <option value="asc">Oldest First (Ascending)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="searchInput">Search <span style="font-weight: normal; font-size: 12px;">(IP, video title, URL, etc.)</span></label>
+                    <input type="text" id="searchInput" placeholder="Type to search..." oninput="filterLogs()">
+                </div>
+            </div>
+
+            <!-- Log Files List -->
+            <div class="log-files-list" id="logFilesList"></div>
+
+            <!-- Log Entries -->
+            <div class="log-entries" id="logEntries"></div>
+
+            <div id="logsError" class="error-message hidden"></div>
+        </div>
+    </div>
+
+    <script>
+        let apiKey = '';
+        let allLogs = [];
+        let currentLogs = [];
+        let autoRefreshInterval = null;
+        let idleTimeout = null;
+        let lastRefreshTime = null;
+        let refreshCountdown = null;
+        const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+        const AUTO_REFRESH_INTERVAL_MS = 10000; // 10 seconds
+
+        // Check for stored session on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            const storedApiKey = localStorage.getItem('adminApiKey');
+            const lastActivity = localStorage.getItem('lastActivity');
+            
+            if (storedApiKey && lastActivity) {
+                const timeSinceLastActivity = Date.now() - parseInt(lastActivity);
+                
+                // If less than idle timeout, restore session
+                if (timeSinceLastActivity < IDLE_TIMEOUT_MS) {
+                    apiKey = storedApiKey;
+                    document.getElementById('apiKey').value = apiKey;
+                    authenticate(true); // Auto-authenticate with stored key
+                } else {
+                    // Session expired, clear storage
+                    clearSession();
+                }
+            }
+        });
+
+        // Track user activity to reset idle timer
+        function resetIdleTimer() {
+            localStorage.setItem('lastActivity', Date.now().toString());
+            
+            // Clear existing timeout
+            if (idleTimeout) {
+                clearTimeout(idleTimeout);
+            }
+            
+            // Set new timeout
+            idleTimeout = setTimeout(() => {
+                alert('Session expired due to inactivity. Please log in again.');
+                logout();
+            }, IDLE_TIMEOUT_MS);
+        }
+
+        // Track activity events
+        ['mousedown', 'keydown', 'scroll', 'touchstart'].forEach(event => {
+            document.addEventListener(event, resetIdleTimer, true);
+        });
+
+        function clearSession() {
+            localStorage.removeItem('adminApiKey');
+            localStorage.removeItem('lastActivity');
+            if (idleTimeout) {
+                clearTimeout(idleTimeout);
+            }
+        }
+
+        function authenticate(isAutoAuth = false) {
+            if (!isAutoAuth) {
+                apiKey = document.getElementById('apiKey').value.trim();
+            }
+            
+            const authError = document.getElementById('authError');
+
+            if (!apiKey) {
+                authError.textContent = 'Please enter an API key';
+                authError.classList.remove('hidden');
+                return;
+            }
+
+            // Try to fetch logs to validate API key
+            fetch('/admin/logs', {
+                headers: {
+                    'X-API-Key': apiKey
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    return response.json();
+                } else if (response.status === 401) {
+                    throw new Error('Invalid API key');
+                } else {
+                    throw new Error('Server error');
+                }
+            })
+            .then(data => {
+                // Authentication successful
+                // Store API key in localStorage
+                localStorage.setItem('adminApiKey', apiKey);
+                resetIdleTimer();
+                
+                document.getElementById('authCard').classList.add('hidden');
+                document.getElementById('logsCard').classList.remove('hidden');
+                displayLogFiles(data.logs);
+                
+                // Start auto-refresh
+                startAutoRefresh();
+            })
+            .catch(error => {
+                authError.textContent = error.message;
+                authError.classList.remove('hidden');
+                clearSession();
+            });
+        }
+
+        function logout() {
+            apiKey = '';
+            document.getElementById('apiKey').value = '';
+            document.getElementById('authCard').classList.remove('hidden');
+            document.getElementById('logsCard').classList.add('hidden');
+            document.getElementById('logFilesList').innerHTML = '';
+            document.getElementById('logEntries').innerHTML = '';
+            
+            // Clear session and stop auto-refresh
+            clearSession();
+            stopAutoRefresh();
+        }
+
+        function startAutoRefresh() {
+            // Clear existing interval if any
+            stopAutoRefresh();
+            
+            // Immediate first refresh
+            updateRefreshStatus();
+            
+            // Set up periodic refresh
+            autoRefreshInterval = setInterval(() => {
+                refreshCurrentView();
+                updateRefreshStatus();
+            }, AUTO_REFRESH_INTERVAL_MS);
+        }
+
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+            }
+            if (refreshCountdown) {
+                clearInterval(refreshCountdown);
+                refreshCountdown = null;
+            }
+        }
+
+        function updateRefreshStatus() {
+            lastRefreshTime = Date.now();
+            const btnEl = document.getElementById('refreshButton');
+            
+            // Clear previous countdown
+            if (refreshCountdown) {
+                clearInterval(refreshCountdown);
+            }
+            
+            // Update countdown every second
+            refreshCountdown = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - lastRefreshTime) / 1000);
+                const remaining = Math.ceil(AUTO_REFRESH_INTERVAL_MS / 1000) - elapsed;
+                
+                if (remaining > 0) {
+                    btnEl.textContent = `🔄 Refresh (${remaining}s)`;
+                } else {
+                    btnEl.textContent = `🔄 Refreshing...`;
+                }
+            }, 1000);
+        }
+
+        function manualRefresh() {
+            const btnEl = document.getElementById('refreshButton');
+            const originalText = btnEl.textContent;
+            
+            // Show loading state
+            btnEl.textContent = '🔄 Refreshing...';
+            btnEl.disabled = true;
+            
+            refreshCurrentView();
+            
+            // Show success and re-enable
+            setTimeout(() => {
+                btnEl.textContent = '✅ Refreshed!';
+                setTimeout(() => {
+                    btnEl.disabled = false;
+                    updateRefreshStatus();
+                }, 500);
+            }, 300);
+        }
+
+        function refreshCurrentView() {
+            const selectedDate = document.getElementById('logFileSelect').value;
+            
+            // Refresh log files list
+            fetch('/admin/logs', {
+                headers: { 'X-API-Key': apiKey }
+            })
+            .then(r => r.json())
+            .then(d => {
+                displayLogFiles(d.logs, selectedDate); // Pass selected date to preserve
+                
+                // If a specific date is selected, refresh that too
+                if (selectedDate) {
+                    loadLogFile();
+                }
+            })
+            .catch(err => console.error('Auto-refresh error:', err));
+        }
+
+        function displayLogFiles(files, preserveSelectedDate = null) {
+            const container = document.getElementById('logFilesList');
+            const selectEl = document.getElementById('logFileSelect');
+            const currentSelected = preserveSelectedDate || selectEl.value;
+            
+            if (files.length === 0) {
+                container.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: #666;">No log files found yet.</p>';
+                return;
+            }
+
+            container.innerHTML = files.map(file => `
+                <div class="log-file-item">
+                    <div onclick="loadSpecificLogFile('${file.date}')" style="cursor: pointer;">
+                        <h3>📅 ${file.date}</h3>
+                        <p><strong>Size:</strong> ${file.size}</p>
+                        <p><strong>Modified:</strong> ${new Date(file.modified).toLocaleString()}</p>
+                    </div>
+                    <button class="danger small" onclick="clearSpecificLog('${file.date}'); event.stopPropagation();" style="margin-top: 10px; width: 100%;">🗑️ Delete</button>
+                </div>
+            `).join('');
+
+            selectEl.innerHTML = '<option value="">-- Select Date --</option>' +
+                files.map(file => `<option value="${file.date}">${file.date}</option>`).join('');
+            
+            // Restore previous selection if it still exists
+            if (currentSelected && files.some(f => f.date === currentSelected)) {
+                selectEl.value = currentSelected;
+            }
+        }
+
+        function loadSpecificLogFile(date) {
+            document.getElementById('logFileSelect').value = date;
+            loadLogFile();
+        }
+
+        function loadLogFile() {
+            const date = document.getElementById('logFileSelect').value;
+            const logsError = document.getElementById('logsError');
+            
+            if (!date) {
+                document.getElementById('logEntries').innerHTML = '';
+                document.getElementById('statsContainer').innerHTML = '';
+                return;
+            }
+
+            fetch(`/admin/logs/${date}`, {
+                headers: {
+                    'X-API-Key': apiKey
+                }
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Failed to load logs');
+                return response.json();
+            })
+            .then(data => {
+                allLogs = data.logs;
+                currentLogs = allLogs;
+                displayStats();
+                filterLogs();
+                logsError.classList.add('hidden');
+            })
+            .catch(error => {
+                logsError.textContent = error.message;
+                logsError.classList.remove('hidden');
+            });
+        }
+
+        function displayStats() {
+            const stats = {
+                total: allLogs.length,
+                fetches: allLogs.filter(l => l.action === 'fetch_video_info').length,
+                downloads: allLogs.filter(l => l.action === 'download_video').length,
+                errors: allLogs.filter(l => l.level === 'error').length
+            };
+
+            document.getElementById('statsContainer').innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-number">${stats.total}</div>
+                    <div class="stat-label">Total Requests</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${stats.fetches}</div>
+                    <div class="stat-label">Video Fetches</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${stats.downloads}</div>
+                    <div class="stat-label">Downloads</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${stats.errors}</div>
+                    <div class="stat-label">Errors</div>
+                </div>
+            `;
+        }
+
+        function filterLogs() {
+            const actionFilter = document.getElementById('actionFilter').value;
+            const searchQuery = document.getElementById('searchInput').value.toLowerCase();
+            const sortOrder = document.getElementById('sortOrder').value;
+
+            currentLogs = allLogs.filter(log => {
+                const matchesAction = !actionFilter || log.action === actionFilter;
+                const matchesSearch = !searchQuery || 
+                    JSON.stringify(log).toLowerCase().includes(searchQuery);
+                return matchesAction && matchesSearch;
+            });
+
+            // Sort by timestamp
+            currentLogs.sort((a, b) => {
+                const timeA = new Date(a.timestamp).getTime();
+                const timeB = new Date(b.timestamp).getTime();
+                
+                if (sortOrder === 'asc') {
+                    return timeA - timeB; // Oldest first
+                } else {
+                    return timeB - timeA; // Newest first
+                }
+            });
+
+            displayLogs();
+        }
+
+        function displayLogs() {
+            const container = document.getElementById('logEntries');
+            
+            if (currentLogs.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #666;">No logs match your filters.</p>';
+                return;
+            }
+
+            container.innerHTML = currentLogs.map(log => {
+                const isError = log.level === 'error';
+                const action = log.action || 'unknown';
+                
+                return `
+                    <div class="log-entry ${isError ? 'error' : ''}">
+                        <div class="log-entry-header">
+                            <span class="log-action">${isError ? '❌' : '✅'} ${action.replace(/_/g, ' ').toUpperCase()}</span>
+                            <span class="log-timestamp">${log.timestamp}</span>
+                        </div>
+                        <div class="log-details">
+                            ${log.videoTitle ? `<p><span class="log-detail-label">Video:</span> ${log.videoTitle}</p>` : ''}
+                            ${log.url ? `<p><span class="log-detail-label">URL:</span> ${log.url}</p>` : ''}
+                            ${log.resolution ? `<p><span class="log-detail-label">Resolution:</span> ${log.resolution}</p>` : ''}
+                            ${log.fileSize ? `<p><span class="log-detail-label">File Size:</span> ${log.fileSize}</p>` : ''}
+                            ${log.ip ? `<p><span class="log-detail-label">IP:</span> ${log.ip}</p>` : ''}
+                            ${log.location ? `<p><span class="log-detail-label">Location:</span> ${log.location.city}, ${log.location.region}, ${log.location.country}</p>` : ''}
+                            ${log.processingTime ? `<p><span class="log-detail-label">Processing Time:</span> ${log.processingTime}ms</p>` : ''}
+                            ${log.error ? `<p><span class="log-detail-label">Error:</span> ${log.error}</p>` : ''}
+                            ${log.message ? `<p><span class="log-detail-label">Message:</span> ${log.message}</p>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function clearSpecificLog(date) {
+            if (!confirm(`Are you sure you want to delete logs for ${date}?\n\nThis action cannot be undone!`)) {
+                return;
+            }
+
+            fetch(`/admin/logs/${date}`, {
+                method: 'DELETE',
+                headers: {
+                    'X-API-Key': apiKey
+                }
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Failed to delete log');
+                return response.json();
+            })
+            .then(data => {
+                alert(data.message);
+                // Refresh log files list
+                fetch('/admin/logs', {
+                    headers: { 'X-API-Key': apiKey }
+                })
+                .then(r => r.json())
+                .then(d => displayLogFiles(d.logs));
+                
+                // Clear current view if we deleted the selected log
+                const selectedDate = document.getElementById('logFileSelect').value;
+                if (selectedDate === date) {
+                    document.getElementById('logEntries').innerHTML = '';
+                    document.getElementById('statsContainer').innerHTML = '';
+                    document.getElementById('logFileSelect').value = '';
+                }
+            })
+            .catch(error => {
+                alert('Error: ' + error.message);
+            });
+        }
+
+        function clearAllLogs() {
+            if (!confirm('⚠️ WARNING ⚠️\n\nAre you sure you want to DELETE ALL LOGS?\n\nThis will permanently delete all log files and cannot be undone!\n\nClick OK to confirm.')) {
+                return;
+            }
+
+            // Double confirmation for safety
+            if (!confirm('FINAL CONFIRMATION\n\nThis is your last chance!\n\nAll logs will be permanently deleted.\n\nAre you absolutely sure?')) {
+                return;
+            }
+
+            fetch('/admin/logs/all', {
+                method: 'DELETE',
+                headers: {
+                    'X-API-Key': apiKey
+                }
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Failed to delete logs');
+                return response.json();
+            })
+            .then(data => {
+                alert(data.message);
+                // Refresh to show empty state
+                displayLogFiles([]);
+                document.getElementById('logEntries').innerHTML = '';
+                document.getElementById('statsContainer').innerHTML = '';
+                document.getElementById('logFileSelect').value = '';
+            })
+            .catch(error => {
+                alert('Error: ' + error.message);
+            });
+        }
+    </script>
+</body>
+</html>
