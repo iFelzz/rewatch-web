@@ -4,11 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Re-Watch - YouTube Video Downloader</title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style.css?v=14">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
 </head>
+<body>
+    <!-- ... (rest of body) ... -->
+    <script src="js/app.js?v=14"></script>
+</body>
 <body>
     <!-- Theme Toggle Button -->
     <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
@@ -16,6 +20,24 @@
         <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
     </button>
     
+    <!-- History Toggle Button -->
+    <button class="history-toggle" onclick="toggleHistory()" aria-label="View History">
+        <span style="font-size: 24px; line-height: 1;">🕒</span>
+    </button>
+
+    <!-- History Modal -->
+    <div class="history-modal" id="historyModal">
+        <div class="history-header">
+            <h3>📜 Recent Downloads</h3>
+        </div>
+        <div id="historyList" class="history-list">
+            <p class="empty-text">No downloads yet.</p>
+        </div>
+        <div class="history-footer">
+            <button class="btn-clear" onclick="clearHistory()">Clear History</button>
+        </div>
+    </div>
+
     <div class="container">
         <h1>🎬 Re-Watch</h1>
         <p class="subtitle">Download YouTube videos to watch again, anytime</p>
@@ -23,6 +45,7 @@
         <div class="tab-buttons">
             <button class="tab-btn active" onclick="switchTab('single')">Single Download</button>
             <button class="tab-btn" onclick="switchTab('batch')">Batch Download</button>
+            <button class="tab-btn" onclick="switchTab('playlist')">Playlist</button>
         </div>
 
         <!-- Single Download Tab -->
@@ -104,6 +127,43 @@
             </div>
 
             <div id="batchResults" style="display: none;"></div>
+        </div>
+
+        <!-- Playlist Tab -->
+        <div id="playlist-tab" style="display: none;">
+            <div class="input-group">
+                <label for="playlistUrl">Playlist URL</label>
+                <input type="text" id="playlistUrl" placeholder="https://www.youtube.com/playlist?list=..." />
+            </div>
+
+            <div class="button-group">
+                <button class="btn-primary" onclick="fetchPlaylistInfo()">📋 Fetch Playlist</button>
+            </div>
+
+            <!-- Specific Status for Playlist -->
+            <div id="playlistSpinner" class="spinner"></div>
+            <div id="playlistStatus"></div>
+
+            <div id="playlistInfo" class="hidden">
+                 <div class="playlist-header">
+                    <h3 id="playlistTitle"></h3>
+                    <p id="playlistCount"></p>
+                </div>
+                
+                <div class="input-group">
+                    <label for="playlistFormat">Format</label>
+                    <select id="playlistFormat">
+                        <option value="mp4">MP4</option>
+                        <option value="audio">MP3 (Audio Only)</option>
+                    </select>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn-success" onclick="downloadPlaylist()">⬇️ Download Playlist</button>
+                </div>
+
+                <div id="playlistItems" class="files-list"></div>
+            </div>
         </div>
 
         <!-- Progress Bar -->

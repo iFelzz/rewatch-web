@@ -26,14 +26,40 @@ class YouTubeService {
     }
 
     async getVideoInfo(url) {
-        return await ytDlp(url, {
+        const cookiesPath = path.join(__dirname, '..', 'config', 'cookies.txt');
+        const args = {
             dumpSingleJson: true,
             noCheckCertificates: true,
             noWarnings: true,
             preferFreeFormats: true,
             addHeader: ['referer:youtube.com', 'user-agent:googlebot']
-        }, {
+        };
+
+        if (fs.existsSync(cookiesPath)) {
+            args.cookies = cookiesPath;
+        }
+
+        return await ytDlp(url, args, {
             timeout: 30000
+        });
+    }
+
+    async getPlaylistInfo(url) {
+        const cookiesPath = path.join(__dirname, '..', 'config', 'cookies.txt');
+        const args = {
+            dumpSingleJson: true,
+            flatPlaylist: true, // Only get metadata, don't download
+            noCheckCertificates: true,
+            noWarnings: true,
+            addHeader: ['referer:youtube.com', 'user-agent:googlebot']
+        };
+
+        if (fs.existsSync(cookiesPath)) {
+            args.cookies = cookiesPath;
+        }
+
+        return await ytDlp(url, args, {
+            timeout: 60000 // Longer timeout for playlists
         });
     }
 
@@ -55,11 +81,16 @@ class YouTubeService {
             '--output', tempFilePath,
             '--no-check-certificates',
             '--newline',
-            '--add-header', 'referer:youtube.com',
             '--add-header', 'user-agent:googlebot',
             '--add-metadata',
             '--embed-thumbnail'
         ];
+
+        // Check for cookies.txt
+        const cookiesPath = path.join(__dirname, '..', 'config', 'cookies.txt');
+        if (fs.existsSync(cookiesPath)) {
+            args.push('--cookies', cookiesPath);
+        }
 
         if (this.ffmpegPath) {
             args.push('--ffmpeg-location', this.ffmpegPath);

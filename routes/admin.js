@@ -82,4 +82,30 @@ router.delete('/logs/:date', (req, res, next) => {
     }
 });
 
+router.post('/cookies', (req, res, next) => {
+    try {
+        const { content } = req.body;
+        if (!content) {
+            return res.status(400).json({ error: 'Cookies content is required' });
+        }
+
+        const configDir = path.join(__dirname, '..', 'config');
+        if (!fs.existsSync(configDir)) {
+            fs.mkdirSync(configDir, { recursive: true });
+        }
+
+        const cookiesPath = path.join(configDir, 'cookies.txt');
+        fs.writeFileSync(cookiesPath, content, 'utf-8');
+        
+        logger.info('Cookies.txt updated by admin', {
+            action: 'update_cookies',
+            ip: req.ip
+        });
+
+        res.json({ success: true, message: 'Cookies saved successfully!' });
+    } catch (error) {
+        next(error);
+    }
+});
+
 module.exports = router;

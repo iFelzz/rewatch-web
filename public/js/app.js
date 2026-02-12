@@ -70,6 +70,7 @@ function switchTab(tab) {
     
     document.getElementById('single-tab').style.display = tab === 'single' ? 'block' : 'none';
     document.getElementById('batch-tab').style.display = tab === 'batch' ? 'block' : 'none';
+    document.getElementById('playlist-tab').style.display = tab === 'playlist' ? 'block' : 'none';
 }
 
 // Format selection
@@ -107,6 +108,101 @@ function selectFormat(format, element) {
         downloadBtn.innerHTML = '⬇️ Download Video';
     }
 }
+
+async function toggleHistory() {
+    console.log('Toggle history clicked');
+    const modal = document.getElementById('historyModal');
+    if (modal) {
+        modal.classList.toggle('show');
+        console.log('Modal class list:', modal.classList);
+    } else {
+        console.error('History modal not found!');
+    }
+}
+
+// Close history when clicking outside
+document.addEventListener('click', (e) => {
+    const modal = document.getElementById('historyModal');
+    const toggleBtn = document.querySelector('.history-toggle');
+    
+    if (modal && toggleBtn && 
+        modal.classList.contains('show') && 
+        !modal.contains(e.target) && 
+        !toggleBtn.contains(e.target)) {
+        modal.classList.remove('show');
+    }
+});
+
+// History Logic
+function saveToHistory(item) {
+    let history = JSON.parse(localStorage.getItem('downloadHistory') || '[]');
+    const newItem = {
+        ...item,
+        id: Date.now(),
+        date: new Date().toISOString()
+    };
+    
+    // Add to beginning
+    history.unshift(newItem);
+    
+    // Limit to 20 items
+    if (history.length > 20) {
+        history = history.slice(0, 20);
+    }
+    
+    localStorage.setItem('downloadHistory', JSON.stringify(history));
+    renderHistory();
+}
+
+function renderHistory() {
+    const historyList = document.getElementById('historyList');
+    if (!historyList) return;
+    
+    const history = JSON.parse(localStorage.getItem('downloadHistory') || '[]');
+    
+    if (history.length === 0) {
+        historyList.innerHTML = '<p class="empty-text">No downloads yet.</p>';
+        return;
+    }
+    
+    historyList.innerHTML = history.map(item => `
+        <div class="history-item">
+            <div class="history-info">
+                <div class="history-title" title="${item.title}">${item.title}</div>
+                <div class="history-meta">
+                    <span class="history-badge">${item.format}</span>
+                    ${item.resolution ? `<span class="history-badge">${item.resolution}</span>` : ''}
+                    <span class="history-date">${new Date(item.date).toLocaleDateString()}</span>
+                </div>
+            </div>
+            <button class="btn-icon" onclick="redownloadItem('${item.url}')" title="Redownload">
+                🔄
+            </button>
+        </div>
+    `).join('');
+}
+
+function clearHistory() {
+    if (confirm('Are you sure you want to clear your download history?')) {
+        localStorage.removeItem('downloadHistory');
+        renderHistory();
+    }
+}
+
+function redownloadItem(url) {
+    document.getElementById('videoUrl').value = url;
+    // Close modal
+    document.getElementById('historyModal').classList.remove('show');
+    // Switch to single tab
+    switchTab('single');
+    // Trigger fetch info
+    fetchVideoInfo();
+}
+
+// Initialize history on load
+document.addEventListener('DOMContentLoaded', () => {
+    renderHistory();
+});
 
 // Fetch single video info
 async function fetchVideoInfo() {
@@ -328,6 +424,18 @@ async function processDownload(url, resolution, format, prefix = '') {
             document.getElementById('progressFill').style.width = '100%';
             document.getElementById('progressText').textContent = `${prefix}Download complete! ✅`;
             showStatus(`${prefix}✅ Download complete!`, 'success');
+            
+            // Save to history
+            // We need title, so let's try to get it from current state or args
+            // For batch/playlist, we might need to pass title. For single, use currentVideoTitle
+            const title = (prefix ? 'Batch Item' : currentVideoTitle) || filename;
+            saveToHistory({
+                title: title,
+                url: url,
+                format: format,
+                resolution: resolution
+            });
+            
             return true;
         } else {
             const data = await response.json();
@@ -367,6 +475,134 @@ async function startDownload() {
     }
 }
 
+// Playlist Logic
+let statusTimeout;
+let playlistStatusTimeout;
+
+async function fetchPlaylistInfo() {
+    const url = document.getElementById('playlistUrl').value.trim();
+    if (!url) return showPlaylistStatus('Please enter a standard Playlist URL', 'error');
+
+    const spinner = document.getElementById('playlistSpinner');
+    const fetchBtn = document.querySelector('#playlist-tab .btn-primary');
+
+    // persistent = true for loading state
+    showPlaylistStatus('Fetching playlist info... (This may take a moment)', 'info', true);
+    spinner.classList.add('active');
+    if (fetchBtn) fetchBtn.disabled = true;
+    
+    try {
+        const response = await fetch('/api/playlist-info', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url })
+        });
+        
+        const data = await response.json();
+        
+        // Artificial delay for smoother UX
+        await new Promise(r => setTimeout(r, 600));
+        
+        if (data.success) {
+            document.getElementById('playlistInfo').classList.remove('hidden');
+            document.getElementById('playlistTitle').textContent = data.title;
+            document.getElementById('playlistCount').textContent = `${data.itemCount} Videos found`;
+            
+            const list = document.getElementById('playlistItems');
+            list.innerHTML = '';
+            
+            data.entries.forEach((video, index) => {
+                const item = document.createElement('div');
+                item.className = 'file-item';
+                item.innerHTML = `
+                    <div class="file-info">
+                        <strong>${index + 1}. ${video.title}</strong>
+                        <span class="file-size">${video.duration ? formatDuration(video.duration) : ''}</span>
+                    </div>
+                `;
+                item.dataset.url = video.url;
+                list.appendChild(item);
+            });
+            
+            showPlaylistStatus('✅ Playlist info fetched!', 'success');
+        } else {
+            showPlaylistStatus(data.error || 'Failed to fetch playlist', 'error');
+        }
+    } catch (error) {
+        showPlaylistStatus('Error fetching playlist info', 'error');
+        console.error(error);
+    } finally {
+        spinner.classList.remove('active');
+        if (fetchBtn) fetchBtn.disabled = false;
+    }
+}
+
+function showPlaylistStatus(message, type, persistent = false) {
+    const statusEl = document.getElementById('playlistStatus');
+    if (!statusEl) return;
+    
+    // Clear existing timeout to prevent premature hiding
+    if (playlistStatusTimeout) {
+        clearTimeout(playlistStatusTimeout);
+        playlistStatusTimeout = null;
+    }
+    
+    statusEl.textContent = message;
+    statusEl.className = type;
+    statusEl.classList.add('show');
+    
+    // Auto hide only if not error and not persistent
+    if (type !== 'error' && !persistent) {
+        playlistStatusTimeout = setTimeout(() => {
+            statusEl.classList.remove('show');
+        }, 5000); // 5 seconds display for success messages
+    }
+}
+
+function showStatus(message, type, persistent = false) {
+    const statusEl = document.getElementById('status');
+    if (!statusEl) return;
+    
+    // Clear existing timeout
+    if (statusTimeout) {
+        clearTimeout(statusTimeout);
+        statusTimeout = null;
+    }
+    
+    statusEl.textContent = message;
+    statusEl.className = type;
+    statusEl.classList.add('show');
+    statusEl.style.display = 'block'; // Ensure display block for generic status
+    
+    if (type !== 'error' && !persistent) {
+        statusTimeout = setTimeout(() => {
+            statusEl.classList.remove('show');
+            statusEl.style.display = 'none';
+        }, 5000);
+    }
+}
+
+function downloadPlaylist() {
+    const format = document.getElementById('playlistFormat').value;
+    const items = document.querySelectorAll('#playlistItems .file-item');
+    const urls = Array.from(items).map(item => item.dataset.url);
+    
+    if (urls.length === 0) return showStatus('No videos in playlist to download', 'error');
+    
+    // Reuse existing batch logic via UI manipulation or direct call?
+    // Let's call the internal logic of startBatchDownload but with custom args
+    
+    // Switch to batch tab visually to show progress
+    document.querySelector('[data-tab="batch"]').click();
+    
+    // Populate batch inputs
+    document.getElementById('batchUrls').value = urls.join('\n');
+    document.getElementById('batchFormat').value = format;
+    
+    // Trigger batch download
+    startBatchDownload();
+}
+
 // Start batch download
 async function startBatchDownload() {
     const resolution = document.getElementById('batchResolution').value;
@@ -390,8 +626,19 @@ async function startBatchDownload() {
             showStatus(`${loopStatus} Downloading: ${item.title}...`, 'info');
             
             // Pass the formatted prefix to processDownload
+            // We temporarily modify processDownload signature to accept title, OR we handle history inside startBatchDownload
+            // Better: update processDownload to accept an options object or title argument
+            // For now, let's just hack it: we save history here for batch items
             const result = await processDownload(item.url, resolution, format, `${loopStatus} `);
-            if (result) successCount++;
+            if (result) {
+                successCount++;
+                saveToHistory({
+                    title: item.title,
+                    url: item.url,
+                    format: format,
+                    resolution: resolution
+                });
+            }
             
             // Wait a bit between downloads to let browser handle the file
             await new Promise(r => setTimeout(r, 1000));
@@ -407,22 +654,7 @@ async function startBatchDownload() {
     }, 5000);
 }
 
-// Helper Functions
-function showStatus(message, type) {
-    const statusEl = document.getElementById('status');
-    if (!statusEl) return;
-    
-    statusEl.textContent = message;
-    statusEl.className = type;
-    statusEl.style.display = 'block';
-    
-    // Auto hide after 5 seconds if not error
-    if (type !== 'error') {
-        setTimeout(() => {
-            statusEl.style.display = 'none';
-        }, 5000);
-    }
-}
+// Helper Functions - showStatus is now defined above with timeout handling
 
 function formatDuration(seconds) {
     if (!seconds) return '';

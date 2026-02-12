@@ -691,6 +691,7 @@
                     </div>
                     
                     <button class="danger" onclick="clearAllLogs()">🗑️ Clear All Logs</button>
+                    <button onclick="openCookiesModal()" style="background: linear-gradient(135deg, #f6ad55 0%, #ed8936 100%);">🍪 Cookies</button>
                     <button onclick="logout()">Logout</button>
                 </div>
             </div>
@@ -729,6 +730,29 @@
 
             <!-- Filters -->
             <div class="filters">
+                <!-- ... filters ... -->
+            </div>
+
+            <!-- Cookies Modal -->
+            <div class="modal-overlay" id="cookiesModal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>🍪 Mange YouTube Cookies</h3>
+                        <button class="modal-close" onclick="closeCookiesModal()">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <p style="margin-bottom: 10px; font-size: 14px; color: #666;">
+                            Paste the content of your <code>cookies.txt</code> file here. This allows downloading Age-Restricted or Premium content.
+                            <br><strong>Note:</strong> Use "Netscape HTTP Cookie File" format.
+                        </p>
+                        <textarea id="cookiesContent" rows="10" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; resize: vertical;" placeholder="# Netscape HTTP Cookie File..."></textarea>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="small" onclick="closeCookiesModal()" style="background: #e0e0e0; color: #333;">Cancel</button>
+                        <button class="small" onclick="saveCookies()">Save Cookies</button>
+                    </div>
+                </div>
+            </div>
                 <div class="form-group">
                     <label for="logFileSelect">Select Log File</label>
                     <select id="logFileSelect" onchange="loadLogFile()">
@@ -790,6 +814,44 @@
         let refreshCountdown = null;
         const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
         const AUTO_REFRESH_INTERVAL_MS = 10000; // 10 seconds
+
+        // Cookies Modal Functions
+        function openCookiesModal() {
+            document.getElementById('cookiesModal').classList.add('show');
+        }
+
+        function closeCookiesModal() {
+            document.getElementById('cookiesModal').classList.remove('show');
+        }
+
+        async function saveCookies() {
+            const content = document.getElementById('cookiesContent').value;
+            if (!content) {
+                alert('Please paste cookies content!');
+                return;
+            }
+
+            try {
+                const response = await fetch('/admin/cookies', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': apiKey
+                    },
+                    body: JSON.stringify({ content })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    alert('Cookies saved successfully!');
+                    closeCookiesModal();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Failed to save cookies: ' + error.message);
+            }
+        }
 
         // Calendar state
         let currentCalendarMonth = new Date().getMonth();

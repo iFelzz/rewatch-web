@@ -8,6 +8,7 @@ const errorHandler = require('./middleware/errorHandler');
 const infoRoutes = require('./routes/info');
 const downloadRoutes = require('./routes/download');
 const adminRoutes = require('./routes/admin');
+const playlistRoutes = require('./routes/playlist');
 const { downloadQueue } = require('./middleware/download-queue');
 
 const app = express();
@@ -27,6 +28,7 @@ app.use(loggingMiddleware);
 // API Routes
 app.use('/api', infoRoutes);
 app.use('/api', downloadRoutes); // Includes /info, /download, /batch, /progress
+app.use('/api', playlistRoutes);
 app.use('/admin', adminRoutes);
 
 // Health Check
