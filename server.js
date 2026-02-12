@@ -297,7 +297,9 @@ app.post('/api/download',
                 '--no-check-certificates',
                 '--newline', // Force newlines for progress parsing
                 '--add-header', 'referer:youtube.com',
-                '--add-header', 'user-agent:googlebot'
+                '--add-header', 'user-agent:googlebot',
+                '--add-metadata',
+                '--embed-thumbnail'
             ];
 
             // Use local ffmpeg-static for portability
