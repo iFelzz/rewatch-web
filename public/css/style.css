@@ -351,7 +351,7 @@ button:disabled {
     100% { transform: rotate(360deg); }
 }
 
-#status, #playlistStatus {
+#status, #playlistStatus, #singleStatus {
     margin-top: 20px;
     padding: 15px;
     border-radius: 10px;
@@ -360,7 +360,7 @@ button:disabled {
     display: none;
 }
 
-#status.show, #playlistStatus.show {
+#status.show, #playlistStatus.show, #singleStatus.show {
     display: block;
     animation: fadeIn 0.3s ease;
 }
@@ -370,19 +370,19 @@ button:disabled {
     to { opacity: 1; }
 }
 
-#status.info, #playlistStatus.info {
+#status.info, #playlistStatus.info, #singleStatus.info {
     background: rgba(102, 126, 234, 0.1);
     border: 2px solid var(--primary);
     color: var(--primary);
 }
 
-#status.success, #playlistStatus.success {
+#status.success, #playlistStatus.success, #singleStatus.success {
     background: rgba(72, 187, 120, 0.1);
     border: 2px solid var(--success);
     color: var(--success);
 }
 
-#status.error, #playlistStatus.error {
+#status.error, #playlistStatus.error, #singleStatus.error {
     background: rgba(245, 101, 101, 0.1);
     border: 2px solid var(--danger);
     color: var(--danger);

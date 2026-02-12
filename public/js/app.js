@@ -204,21 +204,59 @@ document.addEventListener('DOMContentLoaded', () => {
     renderHistory();
 });
 
+// Status Timeouts
+let statusTimeout;
+let playlistStatusTimeout;
+let singleStatusTimeout;
+
+// ...
+
+// Helper for Single Status
+function showSingleStatus(message, type, persistent = false) {
+    const statusEl = document.getElementById('singleStatus');
+    if (!statusEl) return;
+    
+    if (singleStatusTimeout) {
+        clearTimeout(singleStatusTimeout);
+        singleStatusTimeout = null;
+    }
+    
+    statusEl.textContent = message;
+    statusEl.className = type;
+    statusEl.classList.add('show');
+    statusEl.style.display = 'block';
+    
+    if (type !== 'error' && !persistent) {
+        singleStatusTimeout = setTimeout(() => {
+            statusEl.classList.remove('show');
+            statusEl.style.display = 'none';
+        }, 5000);
+    }
+}
+
+// Playlist Logic
+// ... (fetchPlaylistInfo remains same-ish, but let's leave it alone if not in view)
+// I will only replace the top part and fetchVideoInfo
+
 // Fetch single video info
 async function fetchVideoInfo() {
     const url = document.getElementById('videoUrl').value.trim();
-    const status = document.getElementById('status');
-    const spinner = document.getElementById('spinner');
     const videoInfo = document.getElementById('videoInfo');
     const resolutionSelect = document.getElementById('resolution');
+    const spinner = document.getElementById('spinner');
     
     if (!url) {
-        showStatus('Please enter a YouTube URL first!', 'error');
+        showSingleStatus('Please enter a YouTube URL first!', 'error');
+        return;
+    }
+
+    if (url.includes('playlist?list=') && !url.includes('watch?v=') && !url.includes('youtu.be/')) {
+        showSingleStatus('This looks like a playlist. Please use the "Playlist" tab!', 'error');
         return;
     }
 
     spinner.classList.add('active');
-    showStatus('Fetching video information...', 'info');
+    showSingleStatus('Fetching video information...', 'info', true);
     resolutionSelect.disabled = true;
     document.getElementById('downloadBtn').disabled = true;
     videoInfo.classList.remove('show');
@@ -249,10 +287,8 @@ async function fetchVideoInfo() {
             
             videoInfo.classList.add('show');
 
-            // Store available resolutions for format switching
             availableResolutions = data.resolutions || [];
 
-            // Populate resolution dropdown
             if (selectedFormat !== 'audio') {
                 resolutionSelect.innerHTML = '<option value="">-- Select resolution --</option>';
                 data.resolutions.forEach(res => {
@@ -262,22 +298,21 @@ async function fetchVideoInfo() {
                     resolutionSelect.appendChild(option);
                 });
                 resolutionSelect.disabled = false;
+                resolutionSelect.removeEventListener('change', updateDownloadButton);
                 resolutionSelect.addEventListener('change', updateDownloadButton);
-                // Enable/disable download button based on selection
                 updateDownloadButton();
             } else {
                 resolutionSelect.innerHTML = '<option value="">Audio Only</option>';
                 resolutionSelect.disabled = true;
-                // Enable download button for audio format
                 document.getElementById('downloadBtn').disabled = false;
             }
             
-            showStatus('✅ Video info loaded successfully!', 'success');
+            showSingleStatus('✅ Video info loaded successfully!', 'success');
         } else {
-            showStatus(`Error: ${data.error}`, 'error');
+            showSingleStatus(`Error: ${data.error}`, 'error');
         }
     } catch (error) {
-        showStatus('Failed to fetch video info. Check your internet connection.', 'error');
+        showSingleStatus('Failed to fetch video info. Check your internet connection.', 'error');
         console.error(error);
     } finally {
         spinner.classList.remove('active');
@@ -364,14 +399,131 @@ function updateDownloadButton() {
 }
 
 // Start single download
+// Status Timeouts
+// Status Timeouts (Moved to top)
+
+// ... (other code)
+
+// Helper for Single Status
+function showSingleStatus(message, type, persistent = false) {
+    const statusEl = document.getElementById('singleStatus');
+    if (!statusEl) return;
+    
+    // Clear existing timeout
+    if (singleStatusTimeout) {
+        clearTimeout(singleStatusTimeout);
+        singleStatusTimeout = null;
+    }
+    
+    statusEl.textContent = message;
+    statusEl.className = type;
+    statusEl.classList.add('show');
+    statusEl.style.display = 'block';
+    
+    if (type !== 'error' && !persistent) {
+        singleStatusTimeout = setTimeout(() => {
+            statusEl.classList.remove('show');
+            statusEl.style.display = 'none';
+        }, 5000);
+    }
+}
+
+// ...
+
+// Fetch single video info
+async function fetchVideoInfo() {
+    const url = document.getElementById('videoUrl').value.trim();
+    const spinner = document.getElementById('spinner');
+    const videoInfo = document.getElementById('videoInfo');
+    const resolutionSelect = document.getElementById('resolution');
+    
+    if (!url) {
+        showSingleStatus('Please enter a YouTube URL first!', 'error');
+        return;
+    }
+
+    // Validation ...
+    if (url.includes('playlist?list=') && !url.includes('watch?v=') && !url.includes('youtu.be/')) {
+        showSingleStatus('This looks like a playlist. Please use the "Playlist" tab!', 'error');
+        return;
+    }
+
+    spinner.classList.add('active');
+    showSingleStatus('Fetching video information...', 'info', true);
+    resolutionSelect.disabled = true;
+    document.getElementById('downloadBtn').disabled = true;
+    videoInfo.classList.remove('show');
+
+    try {
+        // ... (fetch)
+        const response = await fetch('/api/video-info', {
+             // ...
+             method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url })
+        });
+
+        const data = await response.json();
+        
+        if (data.success) {
+            // ... (populate info)
+            currentVideoTitle = data.title;
+            
+            document.getElementById('videoTitle').textContent = data.title;
+            const duration = formatDuration(data.duration);
+            document.getElementById('videoDuration').textContent = duration ? `Duration: ${duration}` : '';
+            
+            const thumbnailImg = document.getElementById('videoThumbnail');
+            if (data.thumbnail) {
+                thumbnailImg.src = data.thumbnail;
+                thumbnailImg.style.display = 'block';
+            } else {
+                thumbnailImg.style.display = 'none';
+            }
+            
+            videoInfo.classList.add('show');
+            availableResolutions = data.resolutions || [];
+
+             if (selectedFormat !== 'audio') {
+                resolutionSelect.innerHTML = '<option value="">-- Select resolution --</option>';
+                data.resolutions.forEach(res => {
+                    const option = document.createElement('option');
+                    option.value = res;
+                    option.textContent = res === 'best' ? 'Best Quality' : res;
+                    resolutionSelect.appendChild(option);
+                });
+                resolutionSelect.disabled = false;
+                resolutionSelect.removeEventListener('change', updateDownloadButton); // Cleanup
+                resolutionSelect.addEventListener('change', updateDownloadButton);
+                updateDownloadButton();
+            } else {
+                resolutionSelect.innerHTML = '<option value="">Audio Only</option>';
+                resolutionSelect.disabled = true;
+                document.getElementById('downloadBtn').disabled = false;
+            }
+            
+            showSingleStatus('✅ Video info loaded successfully!', 'success');
+        } else {
+            showSingleStatus(`Error: ${data.error}`, 'error');
+        }
+    } catch (error) {
+        showSingleStatus('Failed to fetch video info. Check your internet connection.', 'error');
+        console.error(error);
+    } finally {
+        spinner.classList.remove('active');
+    }
+}
+
+// ...
+
 // Shared download function
-async function processDownload(url, resolution, format, prefix = '') {
+async function processDownload(url, resolution, format, prefix = '', statusFn = showStatus) {
     const progressContainer = document.getElementById('progressContainer');
     
     progressContainer.classList.add('show');
     document.getElementById('progressFill').style.width = '0%';
     document.getElementById('progressText').textContent = `${prefix}Starting download...`;
-    showStatus(`${prefix}Downloading... Please wait ⏳`, 'info');
+    statusFn(`${prefix}Downloading... Please wait ⏳`, 'info', true);
 
     try {
         const response = await fetch('/api/download', {
@@ -381,7 +533,8 @@ async function processDownload(url, resolution, format, prefix = '') {
         });
 
         if (response.ok) {
-            const contentDisposition = response.headers.get('Content-Disposition');
+            // ... (filename logic)
+              const contentDisposition = response.headers.get('Content-Disposition');
             let filename = format === 'audio' ? 'audio.mp3' : 'video.mp4';
             
             if (contentDisposition) {
@@ -391,7 +544,7 @@ async function processDownload(url, resolution, format, prefix = '') {
                 }
             }
 
-            // Stream Reader Implementation for "Saving..." progress
+            // Stream Reader
             const reader = response.body.getReader();
             const contentLength = +response.headers.get('Content-Length');
             let receivedLength = 0;
@@ -423,11 +576,9 @@ async function processDownload(url, resolution, format, prefix = '') {
 
             document.getElementById('progressFill').style.width = '100%';
             document.getElementById('progressText').textContent = `${prefix}Download complete! ✅`;
-            showStatus(`${prefix}✅ Download complete!`, 'success');
+            statusFn(`${prefix}✅ Download complete!`, 'success');
             
             // Save to history
-            // We need title, so let's try to get it from current state or args
-            // For batch/playlist, we might need to pass title. For single, use currentVideoTitle
             const title = (prefix ? 'Batch Item' : currentVideoTitle) || filename;
             saveToHistory({
                 title: title,
@@ -439,11 +590,11 @@ async function processDownload(url, resolution, format, prefix = '') {
             return true;
         } else {
             const data = await response.json();
-            showStatus(`Error: ${data.error}`, 'error');
+            statusFn(`Error: ${data.error}`, 'error');
             return false;
         }
     } catch (error) {
-        showStatus('Failed to download video.', 'error');
+        statusFn('Failed to download video.', 'error');
         console.error(error);
         return false;
     }
@@ -456,7 +607,7 @@ async function startDownload() {
     const spinner = document.getElementById('spinner');
     
     if (!url) {
-        showStatus('Please enter a YouTube URL first!', 'error');
+        showSingleStatus('Please enter a YouTube URL first!', 'error');
         return;
     }
 
@@ -464,7 +615,7 @@ async function startDownload() {
     document.getElementById('downloadBtn').disabled = true;
 
     try {
-        await processDownload(url, resolution, selectedFormat);
+        await processDownload(url, resolution, selectedFormat, '', showSingleStatus);
     } finally {
         loopStatus = '';
         spinner.classList.remove('active');
@@ -476,8 +627,7 @@ async function startDownload() {
 }
 
 // Playlist Logic
-let statusTimeout;
-let playlistStatusTimeout;
+// Playlist Logic
 
 async function fetchPlaylistInfo() {
     const url = document.getElementById('playlistUrl').value.trim();

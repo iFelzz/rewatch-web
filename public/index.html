@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Re-Watch - YouTube Video Downloader</title>
-    <link rel="stylesheet" href="css/style.css?v=14">
+    <link rel="stylesheet" href="css/style.css?v=16">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
 </head>
 <body>
     <!-- ... (rest of body) ... -->
-    <script src="js/app.js?v=14"></script>
+    <script src="js/app.js?v=16"></script>
 </body>
 <body>
     <!-- Theme Toggle Button -->
@@ -58,6 +58,9 @@
             <div class="button-group">
                 <button class="btn-primary" onclick="fetchVideoInfo()">📋 Fetch Info</button>
             </div>
+
+            <!-- Specific Status for Single Download -->
+            <div id="singleStatus"></div>
 
             <div class="video-info" id="videoInfo">
                 <img id="videoThumbnail" class="video-thumbnail" src="" alt="Video Thumbnail" style="display: none;">
