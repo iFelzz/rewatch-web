@@ -79,8 +79,18 @@ router.post('/download',
             logger.info('[DEBUG] Fetching video info', { cleanUrl });
             const info = await youtubeService.getVideoInfo(cleanUrl);
             logger.info('[DEBUG] Video info fetched', { title: info.title });
-            const videoTitle = (info.title || 'video').replace(/[<>:"/\\|?*]/g, '');
             
+            const originalTitle = info.title || 'video';
+            // Sanitize filename: 
+            // 1. Remove quotes (single/double/smart) to prevent header issues
+            // 2. Replace illegal chars with space
+            // 3. Collapse multiple spaces
+            let videoTitle = originalTitle
+                .replace(/['"‘’“”`]/g, '') // Remove all quotes
+                .replace(/[<>:"/\\|?*]/g, ' ') // Replace illegal chars with space
+                .replace(/\s+/g, ' ') // Collapse spaces
+                .trim();
+                
             // Setup temp path (Already checked above)
             // const tempDir = path.join(__dirname, '..', 'temp');
             // if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
@@ -115,12 +125,14 @@ router.post('/download',
             }
 
             // Send file
-            logger.info('Sending file...');
             let finalFileName = videoTitle;
             if (resolution && format !== 'audio') {
                 finalFileName += ` (${resolution})`;
             }
             finalFileName += `.${ext}`;
+            
+            logger.info('Sending file...', { finalFileName });
+
             res.download(tempFilePath, finalFileName, (err) => {
                 if (err) logger.error('Send file error:', err);
                 // Cleanup
@@ -131,6 +143,7 @@ router.post('/download',
                 action: 'download_video',
                 url: cleanUrl,
                 format,
+                finalFileName,
                 processingTime: Date.now() - startTime
             });
 
