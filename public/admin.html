@@ -1372,7 +1372,16 @@
 
             container.innerHTML = currentLogs.map(log => {
                 const isError = log.level === 'error';
-                const action = log.action || 'unknown';
+                
+                // Smart Action Labeling
+                let action = log.action;
+                if (!action) {
+                    if (log.message && log.message.includes('[DEBUG]')) {
+                        action = 'DEBUG_LOG';
+                    } else {
+                        action = 'SYSTEM_LOG';
+                    }
+                }
                 
                 return `
                     <div class="log-entry ${isError ? 'error' : ''}">
