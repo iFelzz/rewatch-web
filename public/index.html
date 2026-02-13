@@ -97,14 +97,17 @@
                 <button class="btn-success" id="downloadBtn" onclick="handleDownloadAction(this)" disabled>⬇️ Download Video</button>
             </div>
             
-            <div id="spinner" class="spinner"></div>
+        </div>
+        
+        <!-- Global Spinner (moved from single-tab) -->
+        <div id="spinner" class="spinner"></div>
 
-            <div id="progressContainer" class="progress-container">
-                <div class="progress-bar">
-                    <div id="progressFill" class="progress-fill"></div>
-                </div>
-                <div id="progressText" class="progress-text">0%</div>
+        <!-- Global Progress Container (moved from single-tab) -->
+        <div id="progressContainer" class="progress-container">
+            <div class="progress-bar">
+                <div id="progressFill" class="progress-fill"></div>
             </div>
+            <div id="progressText" class="progress-text">0%</div>
         </div>
 
         <!-- Batch Download Tab -->
@@ -114,32 +117,41 @@
                 <textarea id="batchUrls" placeholder="https://www.youtube.com/watch?v=VIDEO_ID_1&#10;https://www.youtube.com/watch?v=VIDEO_ID_2&#10;https://youtu.be/VIDEO_ID_3"></textarea>
             </div>
 
-            <div class="input-group">
-                <label for="batchResolution">Default Resolution</label>
-                <select id="batchResolution">
-                    <option value="best">Best Quality</option>
-                    <option value="1080p">1080p</option>
-                    <option value="720p">720p</option>
-                    <option value="480p">480p</option>
-                    <option value="360p">360p</option>
-                </select>
-            </div>
+            <div id="batchOptions" style="display: none;">
+                <div class="input-group">
+                    <label for="batchResolution">Select Resolution</label>
+                    <select id="batchResolution">
+                        <option value="" disabled selected>Select Resolution</option>
+                        <option value="1080p">1080p</option>
+                        <option value="720p">720p</option>
+                        <option value="480p">480p</option>
+                        <option value="360p">360p</option>
+                    </select>
+                </div>
 
-            <div class="input-group">
-                <label for="batchFormat">Format</label>
-                <select id="batchFormat" onchange="toggleBatchResolution()">
-                    <option value="mp4">MP4</option>
-                    <option value="webm">WebM</option>
-                    <option value="audio">MP3 (Audio Only)</option>
-                </select>
+                <div class="input-group">
+                    <label>Format</label>
+                    <div class="format-options">
+                        <label class="format-option selected" id="batchOption-mp4" onclick="selectBatchFormat('mp4', this)">
+                            <input type="radio" name="batchFormat" value="mp4" checked> MP4
+                        </label>
+                        <label class="format-option" id="batchOption-webm" onclick="selectBatchFormat('webm', this)">
+                            <input type="radio" name="batchFormat" value="webm"> WebM
+                        </label>
+                        <label class="format-option" id="batchOption-audio" onclick="selectBatchFormat('audio', this)">
+                            <input type="radio" name="batchFormat" value="audio"> 🎵 MP3
+                        </label>
+                    </div>
+                </div>
             </div>
 
             <div class="button-group">
-                <button class="btn-primary" onclick="fetchBatchInfo()">📋 Preview URLs</button>
+                <button class="btn-primary" onclick="fetchBatchInfo()">📋 Fetch Videos</button>
                 <button class="btn-success" id="batchDownloadBtn" onclick="startBatchDownload()" disabled>⬇️ Download All</button>
             </div>
 
-            <div id="batchResults" style="display: none;"></div>
+            <h3 id="batchListHeader" style="display: none; margin-bottom: 15px; color: var(--text);">Fetched Videos</h3>
+            <div id="batchList" class="files-list"></div>
         </div>
 
         <!-- Playlist Tab -->
@@ -182,6 +194,6 @@
     <!-- Toasts Container (Outside for full width) -->
     <div id="toast-container" class="toast-container"></div>
 
-    <script src="js/app.js?v=44"></script>
+    <script src="js/app.js?v=46"></script>
 </body>
 </html>

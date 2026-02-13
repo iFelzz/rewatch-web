@@ -31,15 +31,25 @@ evtSource.onmessage = function(event) {
     } else if (data.type === 'complete') {
         document.getElementById('progressFill').style.width = '100%';
         document.getElementById('progressText').textContent = 'Download complete! ✅';
-        setTimeout(() => {
-            document.getElementById('progressContainer').classList.remove('show');
-        }, 5000);
+        
+        // Only auto-hide if NOT in batch mode
+        if (!isBatchRunning) {
+            setTimeout(() => {
+                const pContainer = document.getElementById('progressContainer');
+                if (pContainer) pContainer.classList.remove('show');
+            }, 5000);
+        }
     } else if (data.type === 'error') {
         if (isDownloadCancelled) return; // Ignore server errors if cancelled
-        showStatus('Download failed.', 'error');
-        document.getElementById('progressContainer').classList.remove('show');
+        showToast('Download failed.', 'error'); // Use showToast
+        if (!isBatchRunning) {
+            document.getElementById('progressContainer').classList.remove('show');
+        }
     }
 };
+
+// State flag for batch mode
+let isBatchRunning = false;
 
 // Theme toggle
 function toggleTheme() {
@@ -51,7 +61,8 @@ function toggleTheme() {
 
 // Toggle batch resolution based on format
 function toggleBatchResolution() {
-    const format = document.getElementById('batchFormat').value;
+    const formatInput = document.querySelector('input[name="batchFormat"]:checked');
+    const format = formatInput ? formatInput.value : 'mp4';
     const resolutionSelect = document.getElementById('batchResolution');
     
     if (format === 'audio') {
@@ -60,13 +71,26 @@ function toggleBatchResolution() {
     } else {
         resolutionSelect.disabled = false;
         resolutionSelect.innerHTML = `
-            <option value="best">Best Quality</option>
+            <option value="" disabled selected>Select Resolution</option>
             <option value="1080p">1080p</option>
             <option value="720p">720p</option>
             <option value="480p">480p</option>
             <option value="360p">360p</option>
         `;
     }
+}
+
+// Batch Format Selection
+function selectBatchFormat(format, element) {
+    // Update UI
+    document.querySelectorAll('#batchOptions .format-option').forEach(opt => opt.classList.remove('selected'));
+    element.classList.add('selected');
+    
+    // Update Radio
+    const radio = element.querySelector('input[type="radio"]');
+    if (radio) radio.checked = true;
+    
+    toggleBatchResolution();
 }
 
 // Load saved theme
@@ -571,14 +595,25 @@ async function fetchVideoInfo() {
 
 // Shared download function
 async function processDownload(url, resolution, format, prefix = '', statusFn = showStatus) {
+    console.log('processDownload started', { url, prefix });
     isDownloadCancelled = false;
     const progressContainer = document.getElementById('progressContainer');
-    // Ensure UI is ready
-    progressContainer.classList.add('show');
+    
+    if (progressContainer) {
+        console.log('progressContainer found, showing it');
+        progressContainer.classList.add('show');
+    } else {
+        console.error('progressContainer NOT FOUND');
+    }
+
     // cancelBtn removal - handled by updateDownloadButtonState in startDownload
     
-    document.getElementById('progressFill').style.width = '0%';
-    document.getElementById('progressText').textContent = `${prefix}Starting download...`;
+    const progressFill = document.getElementById('progressFill');
+    const progressText = document.getElementById('progressText');
+
+    if (progressFill) progressFill.style.width = '0%';
+    if (progressText) progressText.textContent = `${prefix}Starting download...`;
+    
     statusFn(`${prefix}Downloading... Please wait`, 'info', true);
     
     try {
@@ -891,22 +926,138 @@ function downloadPlaylist() {
     document.getElementById('batchFormat').value = format;
     
     // Trigger batch download
-    startBatchDownload();
+    // fetchBatchInfo() is needed first to populate batchResults!
+    fetchBatchInfo(); 
+}
+
+// Batch Logic
+
+async function fetchBatchInfo() {
+    console.log('fetchBatchInfo called');
+    const urls = document.getElementById('batchUrls').value
+        .split('\n')
+        .map(u => u.trim())
+        .filter(u => u);
+
+    if (urls.length === 0) return showStatus('Please enter at least one URL', 'error');
+
+    const listContainer = document.getElementById('batchList');
+    const downloadBtn = document.getElementById('batchDownloadBtn');
+    const batchOptions = document.getElementById('batchOptions');
+    const listHeader = document.getElementById('batchListHeader');
+    const spinner = document.getElementById('spinner'); // Reuse main spinner
+    
+    batchResults = [];
+    listContainer.innerHTML = '';
+    downloadBtn.disabled = true;
+    if (batchOptions) batchOptions.style.display = 'none'; // Hide options before fetch
+    if (listHeader) listHeader.style.display = 'none'; // Hide header before fetch
+    spinner.classList.add('active');
+    
+    showToast(`Fetching info for ${urls.length} videos...`, 'info', 10000, 'batch-fetch-toast');
+
+    let processedCount = 0;
+
+    // Process sequentially to be safe, or parallel with limit?
+    // Sequential for now to avoid rate limits
+    for (const url of urls) {
+        processedCount++;
+        // Update toast message
+        showToast(`Fetching info: ${processedCount}/${urls.length}`, 'info', 10000, 'batch-fetch-toast');
+        
+        try {
+            const response = await fetch('/api/video-info', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url })
+            });
+            const data = await response.json();
+            
+            if (response.ok) {
+                batchResults.push({
+                    url: url,
+                    title: data.title,
+                    duration: data.duration,
+                    thumbnail: data.thumbnail,
+                    success: true
+                });
+                
+                // Add to UI immediately
+                const div = document.createElement('div');
+                div.className = 'file-item';
+                div.innerHTML = `
+                    <div class="file-info">
+                        <strong>${data.title}</strong>
+                        <span class="file-meta">${formatDuration(data.duration)}</span>
+                    </div>
+                    <span class="status-icon success">✅</span>
+                `;
+                listContainer.appendChild(div);
+            } else {
+                throw new Error(data.error);
+            }
+        } catch (error) {
+            console.error(error);
+             batchResults.push({
+                url: url,
+                success: false,
+                error: error.message
+            });
+            
+            const div = document.createElement('div');
+            div.className = 'file-item error';
+            div.innerHTML = `
+                <div class="file-info">
+                    <strong>Error fetching info</strong>
+                    <div class="file-url">${url}</div>
+                </div>
+                <span class="status-icon error">❌</span>
+            `;
+            listContainer.appendChild(div);
+        }
+    }
+    
+    spinner.classList.remove('active');
+    
+    // Clear the progress toast
+    const progressToast = document.getElementById('batch-fetch-toast');
+    if (progressToast) progressToast.remove();
+    
+    const successCount = batchResults.filter(r => r.success).length;
+    if (successCount > 0) {
+        downloadBtn.disabled = false;
+        if (batchOptions) batchOptions.style.display = 'block'; // Show options after fetch
+        if (listHeader) listHeader.style.display = 'block'; // Show header after fetch
+        showToast(`Found ${successCount} valid videos. Ready to download.`, 'success');
+    } else {
+         showToast('No valid videos found.', 'error');
+    }
 }
 
 // Start batch download
 async function startBatchDownload() {
-    const resolution = document.getElementById('batchResolution').value;
-    const format = document.getElementById('batchFormat').value;
     const btn = document.getElementById('batchDownloadBtn');
     const spinner = document.getElementById('spinner');
 
     if (batchResults.length === 0) {
-        showStatus('No videos to download!', 'error');
+        showToast('No videos to download!', 'error');
         return;
+    }
+    
+    // Get resolution from dropdown
+    const resolution = document.getElementById('batchResolution').value;
+    
+    // Get format from radio buttons
+    const formatInput = document.querySelector('input[name="batchFormat"]:checked');
+    const format = formatInput ? formatInput.value : 'mp4';
+    
+    // Strict validation: Must select a resolution if not Audio
+    if (!resolution && format !== 'audio') {
+        return showToast('Please select a resolution', 'error');
     }
 
     btn.disabled = true;
+    isBatchRunning = true; // Set flag
     spinner.classList.add('active');
     let successCount = 0;
 
@@ -939,9 +1090,11 @@ async function startBatchDownload() {
     loopStatus = ''; // Reset
     spinner.classList.remove('active');
     btn.disabled = false;
-    showStatus(`Batch download finished: ${successCount} files downloaded.`, 'success');
+    isBatchRunning = false; // Reset flag
+    showToast(`Batch download finished: ${successCount} files downloaded.`, 'success');
     setTimeout(() => {
-        document.getElementById('progressContainer').classList.remove('show');
+        const pContainer = document.getElementById('progressContainer');
+        if (pContainer) pContainer.classList.remove('show');
     }, 5000);
 }
 

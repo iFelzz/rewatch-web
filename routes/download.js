@@ -116,7 +116,11 @@ router.post('/download',
 
             // Send file
             logger.info('Sending file...');
-            const finalFileName = `${videoTitle}.${ext}`;
+            let finalFileName = videoTitle;
+            if (resolution && format !== 'audio') {
+                finalFileName += ` (${resolution})`;
+            }
+            finalFileName += `.${ext}`;
             res.download(tempFilePath, finalFileName, (err) => {
                 if (err) logger.error('Send file error:', err);
                 // Cleanup
