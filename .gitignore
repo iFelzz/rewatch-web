@@ -3,3 +3,21 @@ node_modules/
 logs/
 *.log
 temp/
+cookies.txt
+
+# Debug and Test Scripts
+test-*.js
+test_*.js
+*_debug.js
+debug_*.js
+tail-log-client.js
+grep-log.js
+force-cleanup.js
+correlate-log.js
+read-log.js
+filter-log.js
+
+# Test Artifacts
+*.mp4
+*.webm
+*.mp3
