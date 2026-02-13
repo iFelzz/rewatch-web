@@ -671,9 +671,10 @@ async function processDownload(url, resolution, format, prefix = '', statusFn = 
         console.error(error);
         return false;
     } finally {
-        // Only hide if we are NOT starting a new download immediately (rare case)
-        // Better: check if we are still "processing" the same flow
-        if (!document.getElementById('downloadBtn').disabled) {
+        // Hide cancel button if:
+        // 1. Download finished normally (!isDownloadCancelled)
+        // 2. Download was cancelled AND we aren't starting a new one (!disabled)
+        if (!isDownloadCancelled || !document.getElementById('downloadBtn').disabled) {
              document.getElementById('cancelBtn').style.display = 'none'; 
         }
     }
